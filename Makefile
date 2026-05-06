@@ -5,7 +5,9 @@ TOK_MODEL = ./piece_mt.model
 CN_DICT = /home/tfbao/Shiyu/Tokenizer/scripts/dict.txt
 TRAIN_DATA = ./private/train_data.pt
 MODEL_PATH = ./HY-MT1.5-1.8B-new-tok
-OUTPUT_DIR = ./private/phase1_v5
+OLD_MODEL_PATH = ./HY-MT1.5-1.8B
+FROZEN_IDS = ./private/frozen_ids.json
+OUTPUT_DIR = ./private/phase1_v6_frozen
 
 SEQ_LEN = 384
 BATCH_SIZE = 32
@@ -14,6 +16,13 @@ MAX_STEPS = 2000
 WARMUP = 100
 LR = 1e-4
 MAX_CHUNKS = 600000
+
+frozen_ids:
+	$(PYTHON) get_frozen_ids.py \
+		--new_tokenizer $(TOK_MODEL) \
+		--old_model_path $(OLD_MODEL_PATH) \
+		--cn_dict $(CN_DICT) \
+		--output $(FROZEN_IDS)
 
 tokenize:
 	$(PYTHON) pretokenize.py \
@@ -38,7 +47,8 @@ train:
 		--warmup_steps $(WARMUP) \
 		--adam_lr $(LR) \
 		--logging_steps 10 \
-		--save_steps 500
+		--save_steps 500 \
+		$(if $(wildcard $(FROZEN_IDS)),--freeze_mapped_embeds $(FROZEN_IDS))
 
 eval:
 	$(PYTHON) eval.py \
@@ -49,4 +59,4 @@ eval:
 		--no_comet \
 		--batch_size 8
 
-.PHONY: tokenize train eval
+.PHONY: frozen_ids tokenize train eval

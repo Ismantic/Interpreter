@@ -202,6 +202,20 @@ def train(args):
         print(f"Frozen transformer: training {trainable:,} / {total:,} params "
               f"({trainable/total*100:.1f}%)")
 
+    # Freeze specific embedding rows (one-to-one mapped tokens)
+    if args.freeze_mapped_embeds:
+        with open(args.freeze_mapped_embeds) as f:
+            frozen_ids = json.load(f)
+        frozen_mask = torch.zeros(model.config.vocab_size, 1, device=device, dtype=torch.bfloat16)
+        frozen_mask[frozen_ids] = 1.0
+        trainable_count = model.config.vocab_size - len(frozen_ids)
+        print(f"Freezing {len(frozen_ids)} / {model.config.vocab_size} embedding rows, "
+              f"training {trainable_count} rows ({trainable_count/model.config.vocab_size*100:.1f}%)")
+
+        def _zero_frozen_grads(grad):
+            return grad * (1.0 - frozen_mask)
+        model.model.embed_tokens.weight.register_hook(_zero_frozen_grads)
+
     # Dataset
     pad_token_id = tokenizer.pad_token_id
     if args.train_data.endswith(".pt"):
@@ -303,6 +317,8 @@ if __name__ == "__main__":
     parser.add_argument("--gradient_accumulation_steps", type=int, default=1)
     parser.add_argument("--gradient_checkpointing", action="store_true")
     parser.add_argument("--freeze_transformer", action="store_true", help="Only train embed_tokens + lm_head")
+    parser.add_argument("--freeze_mapped_embeds", type=str, default=None,
+                        help="Path to JSON list of token IDs to freeze (one-to-one mapped tokens)")
     parser.add_argument("--max_steps", type=int, default=100)
     parser.add_argument("--warmup_steps", type=int, default=5)
     parser.add_argument("--muon_lr", type=float, default=0.001)
