@@ -1,0 +1,10 @@
+{"messages": [{"role": "user", "content": "将以下文本翻译为英语，注意只需要输出翻译后的结果，不要额外解释：\n\n今天天气很好，适合出去散步。"}, {"role": "assistant", "content": "The weather is nice today, perfect for a walk outside."}]}
+{"messages": [{"role": "user", "content": "Translate the following segment into Chinese, without additional explanation.\n\nThe quick brown fox jumps over the lazy dog."}, {"role": "assistant", "content": "敏捷的棕色狐狸跳过了懒惰的狗。"}]}
+{"messages": [{"role": "user", "content": "将以下文本翻译为日语，注意只需要输出翻译后的结果，不要额外解释：\n\n人工智能正在改变我们的生活方式。"}, {"role": "assistant", "content": "人工知能は私たちの生活様式を変えつつあります。"}]}
+{"messages": [{"role": "user", "content": "将以下文本翻译为英语，注意只需要输出翻译后的结果，不要额外解释：\n\n机器翻译技术在过去几年取得了巨大的进步。"}, {"role": "assistant", "content": "Machine translation technology has made tremendous progress in the past few years."}]}
+{"messages": [{"role": "user", "content": "Translate the following segment into Chinese, without additional explanation.\n\nDeep learning models have revolutionized natural language processing."}, {"role": "assistant", "content": "深度学习模型彻底改变了自然语言处理领域。"}]}
+{"messages": [{"role": "user", "content": "将以下文本翻译为法语，注意只需要输出翻译后的结果，不要额外解释：\n\n我喜欢在周末去公园跑步。"}, {"role": "assistant", "content": "J'aime aller courir dans le parc le week-end."}]}
+{"messages": [{"role": "user", "content": "将以下文本翻译为英语，注意只需要输出翻译后的结果，不要额外解释：\n\n这本书讲述了一个关于友情和勇气的故事。"}, {"role": "assistant", "content": "This book tells a story about friendship and courage."}]}
+{"messages": [{"role": "user", "content": "Translate the following segment into Chinese, without additional explanation.\n\nClimate change is one of the most pressing issues facing humanity today."}, {"role": "assistant", "content": "气候变化是当今人类面临的最紧迫的问题之一。"}]}
+{"messages": [{"role": "user", "content": "将以下文本翻译为韩语，注意只需要输出翻译后的结果，不要额外解释：\n\n学习新语言可以开拓视野。"}, {"role": "assistant", "content": "새로운 언어를 배우면 시야를 넓힐 수 있습니다."}]}
+{"messages": [{"role": "user", "content": "将以下文本翻译为英语，注意只需要输出翻译后的结果，不要额外解释：\n\n科技的发展使得远程办公成为可能。"}, {"role": "assistant", "content": "The development of technology has made remote work possible."}]}

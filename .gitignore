@@ -39,3 +39,15 @@
 
 # debug information files
 *.dwo
+
+# Model weights (too large for git)
+HY-MT1.5-1.8B/
+HY-MT1.5-1.8B-new-tok/
+output_muon/
+
+# Python
+__pycache__/
+*.pyc
+
+# Private
+private/
