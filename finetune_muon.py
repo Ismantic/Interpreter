@@ -234,10 +234,20 @@ def train(args):
     step = 0
     micro_step = 0
     t0 = time.time()
+    interrupted = False
 
-    while step < args.max_steps:
+    import signal
+    def _sigint_handler(sig, frame):
+        nonlocal interrupted
+        if interrupted:  # second Ctrl+C = force quit
+            raise KeyboardInterrupt
+        interrupted = True
+        print(f"\nCtrl+C received at step {step}, saving checkpoint...")
+    signal.signal(signal.SIGINT, _sigint_handler)
+
+    while step < args.max_steps and not interrupted:
         for batch in dataloader:
-            if step >= args.max_steps:
+            if step >= args.max_steps or interrupted:
                 break
             batch = {k: v.to(device) for k, v in batch.items()}
 
@@ -262,7 +272,8 @@ def train(args):
                 if step % args.logging_steps == 0:
                     elapsed = time.time() - t0
                     lrs = [f"{g['lr']:.6f}" for g in optimizer.param_groups]
-                    print(f"step {step}/{args.max_steps} | loss {loss.item():.4f} | "
+                    real_loss = loss.item() * args.gradient_accumulation_steps
+                    print(f"step {step}/{args.max_steps} | loss {real_loss:.4f} | "
                           f"lr [{', '.join(lrs)}] | {elapsed:.1f}s")
 
                 if args.save_steps > 0 and step % args.save_steps == 0:
