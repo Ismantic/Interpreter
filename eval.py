@@ -151,9 +151,26 @@ def main():
     comet_model = None
     if not args.no_comet:
         print("Loading COMET model...")
-        from comet import download_model, load_from_checkpoint
-        comet_path = download_model("Unbabel/wmt22-comet-da")
-        comet_model = load_from_checkpoint(comet_path)
+        from comet import load_from_checkpoint
+        # Use local path if available, otherwise download
+        local_comet = os.path.expanduser("~/.cache/comet/models--Unbabel--wmt22-comet-da")
+        ckpt = None
+        if os.path.isdir(local_comet):
+            for root, dirs, files in os.walk(local_comet):
+                for f in files:
+                    if f == "model.ckpt":
+                        ckpt = os.path.join(root, f)
+                        break
+        if ckpt is None:
+            # Also check git clone location
+            alt = os.path.expanduser("~/new/wmt22-comet-da/checkpoints/model.ckpt")
+            if os.path.exists(alt):
+                ckpt = alt
+        if ckpt is None:
+            from comet import download_model
+            ckpt = download_model("Unbabel/wmt22-comet-da")
+        print(f"Loading from: {ckpt}")
+        comet_model = load_from_checkpoint(ckpt)
         print("COMET model loaded.")
 
     print(f"Loading model from {args.model_path}...")
