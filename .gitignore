@@ -44,6 +44,8 @@
 HY-MT1.5-1.8B/
 HY-MT1.5-1.8B-new-tok/
 output_muon/
+Qwen/Qwen3-*/
+Qwen/eval_results/
 
 # Python
 __pycache__/
@@ -51,6 +53,7 @@ __pycache__/
 
 # Private
 private/
+.claude/
 
 # PDF
 *.pdf
