@@ -84,13 +84,3 @@ news_commentary_sft.jsonl ─► finetune_muon.py phase 2 (SFT, full FT) ─► 
 ### Token ID conventions (after `replace_tokenizer.py`)
 
 Old model: bos=120000, eos=120020, pad=120002. New model: unk=0, bos=1, eos=2, then base vocab, then `<pad>`, `<user>`, `<assistant>`, `<system>` appended at the end (exact IDs in `token_mapping.json`). When generating, left-pad with `pad_token_id` and pass `attention_mask`.
-
-## `Qwen/` subproject — ReTok on Qwen3-0.6B-Base
-
-Parallel experiment that applies the same tokenizer-replacement idea to a *base* (not translation) model, following the ReTok paper (Gu et al., arXiv:2410.04335). The directory is self-contained — copies of the scripts live there rather than sharing with the root.
-
-- **Target**: `Qwen3-0.6B-Base` from ModelScope/HF; `tie_word_embeddings=True`, vocab 151936 → 65007 after swap.
-- **Special-token mapping**: `<s>/</s>/<pad>` ← Qwen `<|endoftext|>` (151643); `<user>/<assistant>/<system>` ← Qwen `<|im_start|>` (151644). Base eval doesn't use chat tokens, so the role markers are init-only.
-- **No SFT phase** for this subproject (the base model has no chat behavior to preserve). Per the user's plan: replace, then run benchmarks before any training.
-- **Eval**: `lm-evaluation-harness` (CLI) for the original BBPE side; `eval_with_piece.py` for the swapped model (subclasses `HFLM` with a `_TokenizerStub` so the harness's `tok_encode` / `tok_decode` / `tok_batch_encode` / stop-criteria paths flow through `PieceTokenizerWrapper`). Tasks come from the ReTok Table 2 recipe: PIQA (5), ARC-C (25), HellaSwag (10), MMLU (5), CMMLU (5), AGIEval (0), BBH (3), HumanEval (0), GSM8K (5).
-- **Workflow**: `make download` → `make replace` → `make eval-base` → `make eval-new`. HumanEval automatically gets `--confirm_run_unsafe_code` from the Makefile loop.
