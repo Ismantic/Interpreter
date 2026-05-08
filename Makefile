@@ -18,16 +18,16 @@ P1_LR = 1e-4
 P1_MAX_CHUNKS = 600000
 
 # Phase 2: full fine-tuning with translation data
-P2_TRAIN_DATA = ./private/alma_sft.jsonl
-P2_MODEL_PATH = ./private/phase1_v8_pseudo
-P2_OUTPUT_DIR = ./private/phase2_v2
+P2_TRAIN_DATA = ./private/sft_8k.jsonl
+P2_MODEL_PATH = ./private/phase1_v10_chat/checkpoint-600
+P2_OUTPUT_DIR = ./private/phase2_v5
 P2_SEQ_LEN = 512
 P2_BATCH = 2
 P2_ACCUM = 16
 P2_STEPS = 500
 P2_WARMUP = 50
-P2_MUON_LR = 0.0003
-P2_ADAM_LR = 3e-5
+P2_MUON_LR = 1e-5
+P2_ADAM_LR = 1e-5
 
 tokenize:
 	$(PYTHON) pretokenize.py \
@@ -61,6 +61,7 @@ phase2:
 		--mode sft \
 		--output_dir $(P2_OUTPUT_DIR) \
 		--gradient_checkpointing \
+		--mask_prompt \
 		--max_seq_length $(P2_SEQ_LEN) \
 		--batch_size $(P2_BATCH) \
 		--gradient_accumulation_steps $(P2_ACCUM) \

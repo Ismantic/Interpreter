@@ -99,9 +99,12 @@ def compute_comet(sources, translations, references, comet_model, use_cpu=False)
 
 def evaluate_direction(model, tokenizer, testset, direction, batch_size, max_samples, comet_model=None):
     sources, references = load_testset(testset, direction)
-    if max_samples:
-        sources = sources[:max_samples]
-        references = references[:max_samples]
+    if max_samples and max_samples < len(sources):
+        import random as _rng
+        _rng.seed(42)
+        indices = _rng.sample(range(len(sources)), max_samples)
+        sources = [sources[i] for i in indices]
+        references = [references[i] for i in indices]
 
     prompt_template = PROMPT_ZH2EN if direction == "zh-en" else PROMPT_EN2ZH
     tgt_lang = "en" if direction == "zh-en" else "zh"

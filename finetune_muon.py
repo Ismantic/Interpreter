@@ -132,17 +132,36 @@ class CLMDataset(torch.utils.data.IterableDataset):
 
 
 class PreTokenizedDataset(Dataset):
-    """Pre-tokenized dataset from a .pt file (shape: [N, seq_len], dtype: int32)."""
-    def __init__(self, pt_file):
+    """Pre-tokenized dataset from a .pt file (shape: [N, seq_len], dtype: int32).
+    If assistant_token_id and eos_token_id are provided, only compute loss on
+    assistant response tokens (between <assistant> and </s>)."""
+    def __init__(self, pt_file, assistant_token_id=None, eos_token_id=None):
         self.data = torch.load(pt_file, weights_only=True).long()
-        print(f"[PreTok] Loaded {self.data.shape[0]} chunks from {pt_file}, seq_len={self.data.shape[1]}")
+        self.assistant_id = assistant_token_id
+        self.eos_id = eos_token_id
+        mask_info = ""
+        if assistant_token_id is not None:
+            mask_info = f", label masking on (assistant={assistant_token_id}, eos={eos_token_id})"
+        print(f"[PreTok] Loaded {self.data.shape[0]} chunks from {pt_file}, seq_len={self.data.shape[1]}{mask_info}")
 
     def __len__(self):
         return self.data.shape[0]
 
     def __getitem__(self, index):
         tokens = self.data[index]
-        return dict(input_ids=tokens, labels=tokens.clone(), attention_mask=torch.ones_like(tokens, dtype=torch.bool))
+        labels = tokens.clone()
+
+        if self.assistant_id is not None:
+            # Mask everything except assistant responses
+            mask = torch.ones_like(labels) * IGNORE_INDEX
+            begins = (tokens == self.assistant_id).nonzero(as_tuple=True)[0].tolist()
+            ends = (tokens == self.eos_id).nonzero(as_tuple=True)[0].tolist()
+            for b, e in zip(begins, ends):
+                if e > b:
+                    mask[b:e + 1] = tokens[b:e + 1]
+            labels = mask
+
+        return dict(input_ids=tokens, labels=labels, attention_mask=torch.ones_like(tokens, dtype=torch.bool))
 
 
 def collate_fn(batch, pad_token_id):
@@ -219,7 +238,9 @@ def train(args):
     # Dataset
     pad_token_id = tokenizer.pad_token_id
     if args.train_data.endswith(".pt"):
-        dataset = PreTokenizedDataset(args.train_data)
+        assistant_id = getattr(tokenizer, 'assistant_token_id', None) if args.mask_prompt else None
+        eos_id = tokenizer.eos_token_id if args.mask_prompt else None
+        dataset = PreTokenizedDataset(args.train_data, assistant_token_id=assistant_id, eos_token_id=eos_id)
     elif args.mode == "clm":
         dataset = CLMDataset(args.train_data, tokenizer, args.max_seq_length)
     else:
@@ -319,6 +340,8 @@ if __name__ == "__main__":
     parser.add_argument("--freeze_transformer", action="store_true", help="Only train embed_tokens + lm_head")
     parser.add_argument("--freeze_mapped_embeds", type=str, default=None,
                         help="Path to JSON list of token IDs to freeze (one-to-one mapped tokens)")
+    parser.add_argument("--mask_prompt", action="store_true",
+                        help="Only compute loss on assistant response tokens (requires chat-format data)")
     parser.add_argument("--max_steps", type=int, default=100)
     parser.add_argument("--warmup_steps", type=int, default=5)
     parser.add_argument("--muon_lr", type=float, default=0.001)
