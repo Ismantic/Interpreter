@@ -91,9 +91,9 @@ def translate_batch(model, tokenizer, sources, prompt_template, batch_size=4, ma
     return translations
 
 
-def compute_comet(sources, translations, references, comet_model):
+def compute_comet(sources, translations, references, comet_model, use_cpu=False):
     data = [{"src": s, "mt": t, "ref": r} for s, t, r in zip(sources, translations, references)]
-    output = comet_model.predict(data, batch_size=32, gpus=1, progress_bar=False)
+    output = comet_model.predict(data, batch_size=32, gpus=0 if use_cpu else 1, progress_bar=False)
     return output.system_score
 
 
@@ -123,7 +123,7 @@ def evaluate_direction(model, tokenizer, testset, direction, batch_size, max_sam
 
     if comet_model is not None:
         print("Computing COMET...")
-        comet_score = compute_comet(sources, translations, references, comet_model)
+        comet_score = compute_comet(sources, translations, references, comet_model, use_cpu=_USE_CPU)
         results["comet"] = comet_score
         print(f"COMET: {comet_score:.4f}")
 
@@ -146,6 +146,7 @@ def main():
     parser.add_argument("--batch_size", type=int, default=4)
     parser.add_argument("--max_samples", type=int, default=None)
     parser.add_argument("--no_comet", action="store_true")
+    parser.add_argument("--cpu", action="store_true", help="Run on CPU (slow but doesn't need GPU)")
     args = parser.parse_args()
 
     comet_model = None
@@ -173,11 +174,17 @@ def main():
         comet_model = load_from_checkpoint(ckpt)
         print("COMET model loaded.")
 
-    print(f"Loading model from {args.model_path}...")
+    global _USE_CPU
+    _USE_CPU = args.cpu
+    device = "cpu" if args.cpu else "cuda"
+    print(f"Loading model from {args.model_path}... (device={device})")
     tokenizer = load_tokenizer(args.model_path)
     model = AutoModelForCausalLM.from_pretrained(
-        args.model_path, trust_remote_code=True, torch_dtype=torch.bfloat16,
-    ).cuda()
+        args.model_path, trust_remote_code=True,
+        torch_dtype=torch.float32 if args.cpu else torch.bfloat16,
+    )
+    if not args.cpu:
+        model = model.cuda()
     model.eval()
 
     all_results = {}

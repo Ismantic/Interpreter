@@ -5,10 +5,10 @@ TOK_MODEL = ./piece_mt.model
 CN_DICT = /home/tfbao/Shiyu/Tokenizer/scripts/dict.txt
 OLD_MODEL_PATH = ./HY-MT1.5-1.8B
 
-# Phase 1: embedding training
-P1_TRAIN_DATA = ./private/train_data.pt
+# Phase 1: embedding training with pseudo-monolingual data
+P1_TRAIN_DATA = ./private/pseudo_mono_wiki.pt
 P1_MODEL_PATH = ./HY-MT1.5-1.8B-new-tok
-P1_OUTPUT_DIR = ./private/phase1_v7
+P1_OUTPUT_DIR = ./private/phase1_v9
 P1_SEQ_LEN = 384
 P1_BATCH = 32
 P1_ACCUM = 8
@@ -18,9 +18,9 @@ P1_LR = 1e-4
 P1_MAX_CHUNKS = 600000
 
 # Phase 2: full fine-tuning with translation data
-P2_TRAIN_DATA = ./private/news_commentary_sft.jsonl
-P2_MODEL_PATH = ./private/phase1_v5
-P2_OUTPUT_DIR = ./private/phase2
+P2_TRAIN_DATA = ./private/alma_sft.jsonl
+P2_MODEL_PATH = ./private/phase1_v8_pseudo
+P2_OUTPUT_DIR = ./private/phase2_v2
 P2_SEQ_LEN = 512
 P2_BATCH = 2
 P2_ACCUM = 16
@@ -52,7 +52,7 @@ phase1:
 		--warmup_steps $(P1_WARMUP) \
 		--adam_lr $(P1_LR) \
 		--logging_steps 10 \
-		--save_steps 500
+		--save_steps 200
 
 phase2:
 	$(PYTHON) finetune_muon.py \
@@ -69,12 +69,12 @@ phase2:
 		--muon_lr $(P2_MUON_LR) \
 		--adam_lr $(P2_ADAM_LR) \
 		--logging_steps 10 \
-		--save_steps 500
+		--save_steps 200
 
 eval:
 	$(PYTHON) eval.py \
 		--model_path $(P2_OUTPUT_DIR) \
-		--testset wmt22 \
+		--testset wmt23 \
 		--direction both \
 		--max_samples 200 \
 		--no_comet \
@@ -83,7 +83,7 @@ eval:
 eval-p1:
 	$(PYTHON) eval.py \
 		--model_path $(P1_OUTPUT_DIR) \
-		--testset wmt22 \
+		--testset wmt23 \
 		--direction both \
 		--max_samples 200 \
 		--no_comet \
