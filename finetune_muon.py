@@ -159,6 +159,9 @@ class PreTokenizedDataset(Dataset):
             for b, e in zip(begins, ends):
                 if e > b:
                     mask[b:e + 1] = tokens[b:e + 1]
+            # If no assistant token found, fall back to full CLM
+            if mask.eq(IGNORE_INDEX).all():
+                mask = labels
             labels = mask
 
         return dict(input_ids=tokens, labels=labels, attention_mask=torch.ones_like(tokens, dtype=torch.bool))
