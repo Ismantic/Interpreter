@@ -217,20 +217,28 @@ def _run_inline_eval(model, model_path, ckpt_path, init_embeds=None):
             norm_ratio = cur_norm / init_norm
         print(f"[diag] embed_norm_ratio={norm_ratio:.4f} | embed_drift(sum)={diff_sq:.2f}")
 
+    # Move model to CPU to free GPU for eval subprocess
+    model.cpu()
+    torch.cuda.empty_cache()
+
     # Run eval.py as subprocess (model is saved to ckpt_path)
     cmd = [python, "-u", "eval.py",
            "--model_path", ckpt_path,
            "--testset", "wmt22",
-           "--direction", "both",
+           "--direction", "en-zh",
            "--batch_size", "8"]
     print(f"[eval] Running: {' '.join(cmd[-6:])}")
-    result = subprocess.run(cmd, capture_output=True, text=True, timeout=1200)
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=1800)
     # Parse and print results
     for line in result.stdout.split('\n'):
         if 'BLEU' in line or 'COMET' in line or 'zh-en' in line or 'en-zh' in line:
             print(f"[eval] {line.strip()}")
     if result.returncode != 0:
         print(f"[eval] ERROR: {result.stderr[-200:]}")
+
+    # Move model back to GPU
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model.to(device)
 
 
 def train(args):
@@ -253,6 +261,16 @@ def train(args):
         trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
         total = sum(p.numel() for p in model.parameters())
         print(f"Frozen transformer: training {trainable:,} / {total:,} params "
+              f"({trainable/total*100:.1f}%)")
+
+    # Freeze embedding if requested (Phase 2: train transformer only)
+    if args.freeze_embedding:
+        for name, param in model.named_parameters():
+            if "embed" in name or "lm_head" in name:
+                param.requires_grad = False
+        trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
+        total = sum(p.numel() for p in model.parameters())
+        print(f"Frozen embedding: training {trainable:,} / {total:,} params "
               f"({trainable/total*100:.1f}%)")
 
     # Freeze specific embedding rows (one-to-one mapped tokens)
@@ -286,7 +304,22 @@ def train(args):
     else:
         dataset = SFTDataset(args.train_data, tokenizer, args.max_seq_length)
 
+    # Split val set (1% of data, min 100 samples)
+    val_loader = None
     is_iterable = isinstance(dataset, torch.utils.data.IterableDataset)
+    if not is_iterable and len(dataset) > 200:
+        val_size = max(100, len(dataset) // 100)
+        train_size = len(dataset) - val_size
+        train_dataset, val_dataset = torch.utils.data.random_split(
+            dataset, [train_size, val_size],
+            generator=torch.Generator().manual_seed(42))
+        val_loader = DataLoader(
+            val_dataset, batch_size=args.batch_size, shuffle=False, num_workers=0,
+            collate_fn=lambda batch: collate_fn(batch, pad_token_id),
+        )
+        print(f"Split: {train_size} train / {val_size} val")
+        dataset = train_dataset
+
     dataloader = DataLoader(
         dataset, batch_size=args.batch_size, shuffle=not is_iterable, num_workers=0,
         collate_fn=lambda batch: collate_fn(batch, pad_token_id),
@@ -367,6 +400,20 @@ def train(args):
                           f"lr [{', '.join(lrs)}]{reg_str} | {elapsed:.1f}s")
 
                 if args.save_steps > 0 and step % args.save_steps == 0:
+                    # Compute val loss
+                    if val_loader is not None:
+                        model.eval()
+                        val_losses = []
+                        with torch.no_grad():
+                            for vb in val_loader:
+                                vb = {k: v.to(device) for k, v in vb.items()}
+                                with torch.amp.autocast("cuda", dtype=torch.bfloat16):
+                                    vl = model(**vb).loss.item()
+                                val_losses.append(vl)
+                        val_loss = sum(val_losses) / len(val_losses)
+                        print(f"step {step} | val_loss {val_loss:.4f}")
+                        model.train()
+
                     save_path = os.path.join(args.output_dir, f"checkpoint-{step}")
                     os.makedirs(save_path, exist_ok=True)
                     model.save_pretrained(save_path)
@@ -415,6 +462,7 @@ if __name__ == "__main__":
     parser.add_argument("--gradient_accumulation_steps", type=int, default=1)
     parser.add_argument("--gradient_checkpointing", action="store_true")
     parser.add_argument("--freeze_transformer", action="store_true", help="Only train embed_tokens + lm_head")
+    parser.add_argument("--freeze_embedding", action="store_true", help="Only train transformer (freeze embed_tokens + lm_head)")
     parser.add_argument("--freeze_mapped_embeds", type=str, default=None,
                         help="Path to JSON list of token IDs to freeze (one-to-one mapped tokens)")
     parser.add_argument("--mask_prompt", action="store_true",

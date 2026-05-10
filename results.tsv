@@ -4,3 +4,16 @@ v18-200	21.08	0.8148	30.68	0.8577	keep	lr=2e-5 linear warmup=50 ckpt-200
 v18-500	21.48	0.8151	31.85	0.8533	discard	lr=2e-5 linear warmup=50 final (en-zh dropped)
 v19-150	-	-	30.07	0.8587	best-enzh	lr=2e-5 linear+reg=0.01(sum) warmup=50 ckpt-150
 v19-500	21.47	0.8151	31.82	0.8532	discard	lr=2e-5 linear+reg=0.01(sum) warmup=50 final
+v20-100	20.40	0.8148	30.07	0.8590	keep	lr=2e-5 cosine(min=1e-5) warmup=5 ckpt-100 (both > init, best en-zh)
+v20-200	-	-	31.80	0.8538	discard	lr=2e-5 cosine(min=1e-5) warmup=5 ckpt-200
+v20-300	-	-	32.45	0.8455	discard	lr=2e-5 cosine(min=1e-5) warmup=5 ckpt-300
+v20-400	21.88	0.8148	31.84	0.8392	discard	lr=2e-5 cosine(min=1e-5) warmup=5 ckpt-400
+bpb-init	-	-	-	-	baseline	BPB=1.375 PPL=61.5
+bpb-v20-100	-	-	-	-	keep	BPB=1.125 PPL=29.1 (100 steps)
+bpb-v18-500	-	-	-	-	reference	BPB=0.980 PPL=18.9 (500 steps, but COMET dropped)
+v21-150	-	-	30.09	0.8591	best-enzh	no mask_prompt, lr=2e-5 cosine(min=1e-5), ckpt-150 (new record)
+v21-200	-	-	30.72	0.8580	keep	no mask_prompt, still > init
+v21-250	-	-	-	0.8505	discard	no mask_prompt, dropped below init
+v21-500	-	-	-	0.8370	reference	no mask_prompt final, val_loss=3.01
+p2v2-100	-	-	-	0.8593	keep	Phase2: freeze_embed from v21-150, mask_prompt, muon+adam 1e-5
+p2v2-500	-	-	-	0.8590	keep	Phase2: freeze_embed from v21-150, COMET stable 0.859x whole run

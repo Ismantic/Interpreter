@@ -80,10 +80,20 @@ version	zh_en_bleu	zh_en_comet	en_zh_bleu	en_zh_comet	embed_norm_ratio	final_los
 - **zh_en_bleu / zh_en_comet**: WMT22 full zh→en scores
 - **en_zh_bleu / en_zh_comet**: WMT22 full en→zh scores
 - **embed_norm_ratio**: `||embed_current|| / ||embed_init||` (healthy range: 1.00-1.20)
-- **final_loss**: training loss at final step
+- **train_loss / val_loss**: final training loss and validation loss
 - **best_step**: which checkpoint had best composite COMET
 - **status**: `keep`, `discard`, `baseline`, or `crash`
 - **description**: short text of what this experiment tried
+
+### val_loss 的意义
+
+val_loss 从训练数据自动 split 1% 计算，每 save_steps 评估一次。它是判断 embedding 学习效果的核心指标：
+- **val_loss 持续下降**: embedding 还在有效学习，可以加更多数据/步数
+- **val_loss 持平**: embedding 已学到当前数据能教的，需要更多/更好的数据
+- **val_loss 上升**: 过拟合，应该 early stop 或加数据
+- **train_loss 降但 val_loss 涨**: 经典过拟合信号，说明数据量不够或训练步数过多
+
+val_loss 比 COMET 快 100 倍（秒级 vs 20 分钟），适合高频监控。当 val_loss 趋势好时才值得跑 COMET 评测。
 
 ## Decision rules
 
@@ -135,15 +145,27 @@ version	zh_en_bleu	zh_en_comet	en_zh_bleu	en_zh_comet	embed_norm_ratio	final_los
 10. **COMET stabilizes at lr < 5e-6**: in v19 steps 300-500, COMET stops dropping (0.8528-0.8536) as lr approaches 0.
 11. **v19 ckpt-150 is current best en→zh** (COMET 0.8587, +0.0016 over init).
 
+## Core Contradiction (updated 2026-05-10)
+
+**BPB keeps improving with more steps** (1.375→1.125→0.980) but **COMET peaks early then degrades** (0.8590 at step 100, 0.8533 at step 500). Embedding needs more training for language modeling quality, but more training hurts translation quality.
+
+| Model | BPB | en→zh COMET |
+|-------|-----|-------------|
+| init | 1.375 | 0.8571 |
+| v20-100 | 1.125 | 0.8590 |
+| v18-500 | 0.980 | 0.8533 |
+
+This is the central problem to solve. Any solution must allow BPB to continue improving without COMET degradation.
+
 ## Ideas to try (prioritized)
 
-1. **cosine_with_min_lr** (lr=2e-5 → min_lr=1e-5) — keep lr in productive range ← RUNNING NOW (v20)
-2. **Untie embed_tokens and lm_head**, use different lr for each
-3. **Constant lr=1.5e-5** (no decay) + 500 steps — simplest test of "lr in optimal range"
-4. **Warmdown only** (constant lr for 80%, linear decay last 20%)
-5. **EMA** of embeddings — smooth out training noise
-6. **Larger data** (1B tokens) + more steps with optimal lr/schedule
-7. **Different embed/unembed lr** without untying — use gradient hooks to scale
+1. ~~cosine_with_min_lr (lr=2e-5 → min_lr=1e-5)~~ — DONE, v20. lr too high too long, en→zh crashed at step 400
+2. **Multi-round short training with different data** — 100 steps each round, fresh data each time, avoid overfitting single data style
+3. **Phase 2 early** — use v20-100 as Phase 1 output, let Transformer adapt in Phase 2
+4. **Data closer to COMET preference** — current training data style diverges from WMT reference style, causing COMET drop
+5. **EMA** of embeddings — smooth out training noise, may stabilize COMET while BPB improves
+6. **Larger data** (1B tokens) — more diverse data may prevent style overfitting
+7. **Different embed/unembed lr** without untying — use gradient hooks to scale lm_head vs embed_tokens gradients
 
 ## Available data files
 
@@ -152,6 +174,20 @@ version	zh_en_bleu	zh_en_comet	en_zh_bleu	en_zh_comet	embed_norm_ratio	final_los
 | phase1_v18_ft.pt | 257M | v17 data + FineTranslations 30K (current default) |
 | phase1_combined.pt | ~246M | Multi-source deduped |
 | phase1_100M.pt | 100M | Smaller subset |
+
+## Phase 2: Freeze Embedding, Fine-tune Transformer
+
+When Phase 1 reaches its ceiling (COMET > init but BPB far from original), move to Phase 2:
+
+**Strategy**: Freeze the trained embedding (from best Phase 1 checkpoint), fine-tune ONLY the transformer layers. This is the "reverse TranslateGemma" approach — let the transformer adapt to the new embeddings.
+
+**Rationale**: Phase 1 embedding training is limited by frozen transformer. The COMET-BPB tradeoff cannot be resolved with embedding-only training. Phase 2 lets the transformer compensate.
+
+**Implementation**: Remove `--freeze_transformer`, add `--freeze_embedding` (new flag needed), use small lr for transformer (1e-5 to 1e-6).
+
+**Best Phase 1 checkpoint candidates**:
+- v21 ckpt-150: en→zh COMET 0.8591 (highest), no mask_prompt
+- v20 ckpt-100: en→zh COMET 0.8590, zh→en COMET 0.8148
 
 ## NEVER STOP
 
