@@ -202,6 +202,37 @@ def build_optimizer(model, muon_lr, adam_lr, muon_momentum, weight_decay):
         return torch.optim.AdamW(adam_params, lr=adam_lr, betas=(0.9, 0.95), eps=1e-10, weight_decay=weight_decay)
 
 
+def _run_inline_eval(model, model_path, ckpt_path, init_embeds=None):
+    """Run quick eval on WMT22 both directions with COMET + diagnostics."""
+    import subprocess
+    python = sys.executable
+
+    # Embedding diagnostics
+    if init_embeds is not None:
+        with torch.no_grad():
+            cur = model.model.embed_tokens.weight
+            diff_sq = (cur - init_embeds).pow(2).sum().item()
+            init_norm = init_embeds.norm().item()
+            cur_norm = cur.norm().item()
+            norm_ratio = cur_norm / init_norm
+        print(f"[diag] embed_norm_ratio={norm_ratio:.4f} | embed_drift(sum)={diff_sq:.2f}")
+
+    # Run eval.py as subprocess (model is saved to ckpt_path)
+    cmd = [python, "-u", "eval.py",
+           "--model_path", ckpt_path,
+           "--testset", "wmt22",
+           "--direction", "both",
+           "--batch_size", "8"]
+    print(f"[eval] Running: {' '.join(cmd[-6:])}")
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=1200)
+    # Parse and print results
+    for line in result.stdout.split('\n'):
+        if 'BLEU' in line or 'COMET' in line or 'zh-en' in line or 'en-zh' in line:
+            print(f"[eval] {line.strip()}")
+    if result.returncode != 0:
+        print(f"[eval] ERROR: {result.stderr[-200:]}")
+
+
 def train(args):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -238,6 +269,12 @@ def train(args):
             return grad * (1.0 - frozen_mask)
         model.model.embed_tokens.weight.register_hook(_zero_frozen_grads)
 
+    # Save init embeddings for regularization
+    init_embeds = None
+    if args.embed_reg > 0:
+        init_embeds = model.model.embed_tokens.weight.data.clone().detach()
+        print(f"Embedding regularization: λ={args.embed_reg}")
+
     # Dataset
     pad_token_id = tokenizer.pad_token_id
     if args.train_data.endswith(".pt"):
@@ -259,11 +296,16 @@ def train(args):
     optimizer = build_optimizer(model, args.muon_lr, args.adam_lr, args.muon_momentum, args.weight_decay)
 
     # LR scheduler
+    import math
+    min_lr_ratio = args.min_lr / args.adam_lr if args.adam_lr > 0 else 0.0
     def lr_lambda(step):
         if step < args.warmup_steps:
             return step / max(1, args.warmup_steps)
         progress = (step - args.warmup_steps) / max(1, args.max_steps - args.warmup_steps)
-        return max(0.0, 1.0 - progress)
+        if args.lr_scheduler == "cosine_with_min_lr":
+            return min_lr_ratio + (1.0 - min_lr_ratio) * 0.5 * (1.0 + math.cos(math.pi * progress))
+        else:  # linear
+            return max(0.0, 1.0 - progress)
     scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda)
 
     # Training loop
@@ -293,6 +335,11 @@ def train(args):
                 outputs = model(**batch)
                 loss = outputs.loss
 
+                # Embedding regularization: penalize drift from init
+                if init_embeds is not None:
+                    embed_diff = (model.model.embed_tokens.weight - init_embeds).pow(2).sum()
+                    loss = loss + args.embed_reg * embed_diff
+
             if args.gradient_accumulation_steps > 1:
                 loss = loss / args.gradient_accumulation_steps
 
@@ -311,20 +358,47 @@ def train(args):
                     elapsed = time.time() - t0
                     lrs = [f"{g['lr']:.6f}" for g in optimizer.param_groups]
                     real_loss = loss.item() * args.gradient_accumulation_steps
+                    reg_str = ""
+                    if init_embeds is not None:
+                        with torch.no_grad():
+                            ed = (model.model.embed_tokens.weight - init_embeds).pow(2).sum().item()
+                        reg_str = f" | reg {ed:.2f}"
                     print(f"step {step}/{args.max_steps} | loss {real_loss:.4f} | "
-                          f"lr [{', '.join(lrs)}] | {elapsed:.1f}s")
+                          f"lr [{', '.join(lrs)}]{reg_str} | {elapsed:.1f}s")
 
                 if args.save_steps > 0 and step % args.save_steps == 0:
                     save_path = os.path.join(args.output_dir, f"checkpoint-{step}")
                     os.makedirs(save_path, exist_ok=True)
                     model.save_pretrained(save_path)
+                    # Copy tokenizer files
+                    for tf in ["piece.model", "token_mapping.json"]:
+                        src = os.path.join(args.model_path, tf)
+                        if os.path.exists(src):
+                            import shutil
+                            shutil.copy2(src, save_path)
                     print(f"Saved checkpoint to {save_path}")
+
+                    # Inline eval if requested
+                    if args.eval_steps > 0 and step % args.eval_steps == 0:
+                        model.eval()
+                        _run_inline_eval(model, args.model_path, save_path, init_embeds)
+                        model.train()
 
     # Save final model
     if args.output_dir:
         os.makedirs(args.output_dir, exist_ok=True)
         model.save_pretrained(args.output_dir)
+        for tf in ["piece.model", "token_mapping.json"]:
+            src = os.path.join(args.model_path, tf)
+            if os.path.exists(src):
+                import shutil
+                shutil.copy2(src, args.output_dir)
         print(f"Saved final model to {args.output_dir}")
+
+        # Final inline eval
+        if args.eval_steps > 0:
+            model.eval()
+            _run_inline_eval(model, args.model_path, args.output_dir, init_embeds)
 
     elapsed = time.time() - t0
     print(f"Training complete: {step} steps in {elapsed:.1f}s ({step/elapsed:.2f} steps/s)")
@@ -354,6 +428,14 @@ if __name__ == "__main__":
     parser.add_argument("--max_grad_norm", type=float, default=1.0)
     parser.add_argument("--logging_steps", type=int, default=1)
     parser.add_argument("--save_steps", type=int, default=0)
+    parser.add_argument("--eval_steps", type=int, default=0,
+                        help="Run inline WMT22 eval every N steps (must be multiple of save_steps)")
+    parser.add_argument("--embed_reg", type=float, default=0.0,
+                        help="L2 regularization weight toward init embeddings (0=off)")
+    parser.add_argument("--lr_scheduler", type=str, default="linear",
+                        choices=["linear", "cosine_with_min_lr"])
+    parser.add_argument("--min_lr", type=float, default=0.0,
+                        help="Minimum LR for cosine_with_min_lr scheduler")
     parser.add_argument("--fp16", action="store_true")
     args = parser.parse_args()
     train(args)

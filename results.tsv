@@ -1,0 +1,6 @@
+version	zh_en_bleu	zh_en_comet	en_zh_bleu	en_zh_comet	status	description
+init	19.56	0.8134	27.88	0.8571	baseline	untrained init model
+v18-200	21.08	0.8148	30.68	0.8577	keep	lr=2e-5 linear warmup=50 ckpt-200
+v18-500	21.48	0.8151	31.85	0.8533	discard	lr=2e-5 linear warmup=50 final (en-zh dropped)
+v19-150	-	-	30.07	0.8587	best-enzh	lr=2e-5 linear+reg=0.01(sum) warmup=50 ckpt-150
+v19-500	21.47	0.8151	31.82	0.8532	discard	lr=2e-5 linear+reg=0.01(sum) warmup=50 final
