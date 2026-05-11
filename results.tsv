@@ -24,3 +24,4 @@ p2v7-200	-	-	-	0.8572	keep	Phase2: from v21-200, freeze_embed, SFT 44K, COMET=0.
 p2v8-200	-	-	-	0.8579	keep	Phase2: from v21-200, full ft lr=1e-6, COMET90 data, COMET stable
 p2v9-100	-	-	-	0.8339	discard	Phase2: from v21-200, full ft lr=1e-5, COMET90, COMET crashed
 p2v10-150	-	-	-	0.8549	discard	Phase2: from v21-200, full ft lr=5e-6, COMET90, COMET dropped 0.003
+v22-500	-	-	-	0.8577	BEST	Phase1: lr=1e-5 cosine(min=5e-6), no mask, 500 steps, COMET STABLE entire run!
