@@ -34,10 +34,9 @@ def translate_batch(model, tokenizer, sources, prompt_template, batch_size=8, ma
         batch_src = sources[i:i + batch_size]
         prompts = [prompt_template.format(src=s) for s in batch_src]
 
-        # Build ChatML format without think tags
+        # ChatML format: <|im_start|>user\n{prompt}<|im_end|>\n<|im_start|>assistant\n
         all_ids = []
         for p in prompts:
-            # <|im_start|>user\n{prompt}<|im_end|>\n<|im_start|>assistant\n
             text = f"<|im_start|>user\n{p}<|im_end|>\n<|im_start|>assistant\n"
             ids = tokenizer.encode(text, add_special_tokens=False)
             all_ids.append(ids)
@@ -49,12 +48,15 @@ def translate_batch(model, tokenizer, sources, prompt_template, batch_size=8, ma
         ], device=device)
         attention_mask = input_ids.ne(pad_id)
 
+        # Use <|im_end|> as eos for generation (Qwen3 convention)
+        im_end_id = tokenizer.convert_tokens_to_ids("<|im_end|>")
         with torch.no_grad(), torch.amp.autocast("cuda", dtype=torch.bfloat16):
             outputs = model.generate(
                 input_ids=input_ids,
                 attention_mask=attention_mask,
                 max_new_tokens=max_new_tokens,
                 do_sample=False,
+                eos_token_id=im_end_id,
             )
 
         for j, output in enumerate(outputs):
@@ -72,11 +74,17 @@ def translate_batch(model, tokenizer, sources, prompt_template, batch_size=8, ma
     return translations
 
 
-def evaluate(model, tokenizer, testset, direction, batch_size, comet_model=None):
+def evaluate(model, tokenizer, testset, direction, batch_size, comet_model=None, max_samples=None):
     src_lang, tgt_lang = direction.split("-")
     prompt_template = PROMPT_ZH2EN if src_lang == "zh" else PROMPT_EN2ZH
 
     sources, references = load_testset(testset, direction)
+    if max_samples and max_samples < len(sources):
+        import random
+        random.seed(42)
+        indices = random.sample(range(len(sources)), max_samples)
+        sources = [sources[i] for i in indices]
+        references = [references[i] for i in indices]
     print(f"\n{'='*60}")
     print(f"Evaluating {testset} {direction} ({len(sources)} sentences)")
     print(f"{'='*60}")
@@ -120,6 +128,7 @@ def main():
                         choices=["wmt17", "wmt18", "wmt19", "wmt20", "wmt21", "wmt22", "wmt23"])
     parser.add_argument("--direction", type=str, default="both", choices=["zh-en", "en-zh", "both"])
     parser.add_argument("--batch_size", type=int, default=8)
+    parser.add_argument("--max_samples", type=int, default=None)
     parser.add_argument("--no_comet", action="store_true")
     args = parser.parse_args()
 
@@ -155,7 +164,7 @@ def main():
     all_results = {}
 
     for direction in directions:
-        results = evaluate(model, tokenizer, args.testset, direction, args.batch_size, comet_model)
+        results = evaluate(model, tokenizer, args.testset, direction, args.batch_size, comet_model, args.max_samples)
         all_results[direction] = results
 
     print(f"\n{'='*60}")

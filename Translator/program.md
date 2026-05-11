@@ -1,6 +1,6 @@
-# Translator: Qwen3-0.6B → Chinese-English Translation Model
+# Translator: Qwen3-Base → Chinese-English Translation Model
 
-Train Qwen3-0.6B into a high-quality zh↔en translation model, targeting HY-MT1.5-1.8B level quality.
+Train Qwen3-Base (0.6B/1.7B) into a high-quality zh↔en translation model. Following ALMA → ALMA-R → X-ALMA → TranslateGemma → HY-MT methodology progression.
 
 ## Goal
 
@@ -8,91 +8,117 @@ Train Qwen3-0.6B into a high-quality zh↔en translation model, targeting HY-MT1
 |-------|------|-------------|-------------|
 | HY-MT1.5-1.8B | 1.8B | 0.8182 | 0.8745 |
 | ALMA-13B-R | 13B | TBD | TBD |
-| TranslateGemma-4B | 4B | TBD | TBD |
-| **Our target** | **0.6B** | **0.80+** | **0.85+** |
-| Qwen3-0.6B (base) | 0.6B | TBD | ~0.81* |
-
-## TODO
-- [ ] Compute ALMA-13B-R WMT22 COMET from saved outputs in `/home/tfbao/new/ALMA/outputs/`
-- [ ] Find TranslateGemma WMT22 COMET scores
-- [ ] Try Aurora optimizer
-- [ ] Try inverse_sqrt scheduler (ALMA default)
-- [ ] Increase batch size (GPU has 11GB headroom)
-- [ ] Stage 2: CPO with COMET reward
-
-## Why Qwen3-0.6B
-
-- Already bilingual (Chinese + English), no tokenizer issues
-- 0.6B params → fast training on single 4090
-- Strong base model quality from Qwen3 family
-- Skip ALMA's Stage 1 (monolingual pretraining) — Qwen3 already has language understanding
+| **Our target** | **0.6B/1.7B** | **0.80+** | **0.85+** |
 
 ## Setup
 
 - **Working dir**: `/home/tfbao/Shiyu/Interpreter/Translator/`
 - **Python**: `/home/tfbao/new/HY-MT/.venv/bin/python -u`
 - **GPU**: Single NVIDIA RTX 4090 (24GB)
-- **Base model**: `./Qwen3-0.6B` (downloaded via ModelScope)
+- **Base models**: `./Qwen3-0.6B-Base`, `./Qwen3-1.7B-Base` (downloaded via ModelScope)
+- **IMPORTANT**: Always use **Base** models, not instruct models. ALMA trains from base.
 
-## Training Pipeline
+## Experiment Plan (methodology progression)
 
-### Stage 1: Translation SFT
-- **Data**: `/home/tfbao/Shiyu/Interpreter/private/sft_distill_ft.jsonl` (186K pairs)
-  - 117K zh→en (HY-MT distillation + FineTranslations)
-  - 69K en→zh (HY-MT distillation)
-- **Method**: Full fine-tuning, mask_prompt (only compute loss on translation output)
-- **Hyperparams** (reference TranslateGemma): lr=1e-4 (AdaFactor) or 1e-5 (AdamW), cosine schedule
-- **Prompt format**: Same as HY-MT
-  - zh→en: `将以下文本翻译为英语，注意只需要输出翻译后的结果，不要额外解释：\n\n{src}`
-  - en→zh: `Translate the following segment into Chinese, without additional explanation.\n\n{src}`
-- **Eval**: WMT22 full, both directions, COMET + BLEU
+### Phase A: ALMA-style SFT (current)
+1. ✅ v4: Qwen3-0.6B (instruct) + X-ALMA 14K → zh-en 0.7649, en-zh 0.8175
+2. ✅ v6: Qwen3-0.6B (instruct) + ALMA Human + X-ALMA 44K → zh-en 0.7645, en-zh 0.8187
+3. ✅ base_v1: Qwen3-0.6B-Base + ALMA Human + X-ALMA 44K → eval running
+4. 🔄 1.7b_base_v1: Qwen3-1.7B-Base + same data → training
+5. [ ] Compare base vs instruct results
 
-### Stage 2: CPO/DPO Preference Optimization
-- **Goal**: Directly optimize COMET score
-- **Method**: Offline preference learning (ALMA-R style)
-  1. Generate N candidates per source with Stage 1 model (temperature sampling)
-  2. Score all candidates with COMET
-  3. Build preference pairs (best vs worst)
-  4. Train with CPO loss
-- **Data**: WMT test sets or distillation sources as prompt pool
-- **Reference**: ALMA-R CPO code in `/home/tfbao/new/ALMA/run_cpo_llmmt.py`
+### Phase B: ALMA-R CPO
+6. [ ] Generate candidates from best SFT model (temperature sampling)
+7. [ ] Score with COMET, build preference pairs
+8. [ ] CPO training (ALMA: lr=1e-4, LoRA, beta=0.1)
 
-### Stage 3 (Optional): Translation-oriented CPT
-- Continue pretraining with large-scale parallel translation data (HY-MT style)
-- Data: WikiMatrix + MultiUN + FineTranslations + distillation pairs as bilingual parallel text
-- Format: pack parallel pairs into sequences for CLM (e.g. `{zh}\n{en}` or chat template)
-- Goal: teach the model deeper bilingual alignment before SFT
-- Only if Stage 1+2 quality is insufficient
+### Phase C: TranslateGemma techniques
+9. [ ] Freeze Embedding SFT (TranslateGemma validated this approach)
+10. [ ] Synthetic data: use HY-MT 1.8B as teacher to translate large-scale monolingual data
+11. [ ] COMET-QE data filtering (select source sentences that benefit most from translation)
 
-## Key Design Decisions
+### Phase D: HY-MT techniques
+12. [ ] Translation-oriented CPT with large-scale parallel data (WikiMatrix, MultiUN, etc.)
+13. [ ] HY-MT config SFT (lr=1e-5, cosine_with_min_lr, mask_prompt)
+14. [ ] Teacher distillation from HY-MT 1.8B (the model IS distilled from 7B)
+15. [ ] RegMix-style data ratio optimization
 
-1. **Full fine-tune, not LoRA**: 0.6B model is small enough for full fine-tuning on 4090
-2. **mask_prompt**: Only compute loss on assistant response (translation output)
-3. **No system message**: HY-MT default system prompt is empty
-4. **Evaluation**: Use same eval.py from Interpreter project, adapted for Qwen3 tokenizer
+## ALMA-aligned Training Config
+
+```bash
+python train.py \
+    --model_path ./Qwen3-0.6B-Base \
+    --train_data ./alma_combined_sft.jsonl \
+    --output_dir ./output_base_vXX \
+    --max_seq_length 512 \
+    --batch_size 4 --gradient_accumulation_steps 4 \
+    --gradient_checkpointing \
+    --num_epochs 1 \
+    --lr 2e-5 --min_lr 1e-6 --lr_scheduler inverse_sqrt \
+    --warmup_ratio 0.01 --weight_decay 0.01 \
+    --logging_steps 100 --save_steps 1000
+```
+
+No inline eval. Eval after training:
+```bash
+python eval.py --model_path ./output_base_vXX --testset wmt22 --direction both --batch_size 32
+```
+
+## Current Results
+
+| Experiment | Model | Data | zh→en COMET | en→zh COMET |
+|------------|-------|------|-------------|-------------|
+| v4 | 0.6B instruct | X-ALMA 14K | 0.7649 | 0.8175 |
+| v6 | 0.6B instruct | ALMA+X-ALMA 44K | 0.7645 | 0.8187 |
+| base_v1 | 0.6B-Base | ALMA+X-ALMA 44K | running | running |
+| 1.7b_base_v1 | 1.7B-Base | ALMA+X-ALMA 44K | training | training |
+
+## Key Findings
+
+1. **X-ALMA 14K data is sufficient for decent SFT** — 44K (+ ALMA Human) barely improves over 14K
+2. **186K distillation data causes COMET degradation** after 500 steps (v1 experiment)
+3. **Instruct vs Base**: must use Base model for SFT (ALMA does this)
+4. **inverse_sqrt scheduler** is ALMA default, not cosine
+5. **1 epoch is enough** for SFT (ALMA and TranslateGemma both use 1 epoch)
+6. **Training is fast**: 0.6B model + 44K data = 14 minutes on 4090
 
 ## Available Data
 
-| Source | Pairs | Direction | Quality |
-|--------|-------|-----------|---------|
-| HY-MT distillation (SkyPile) | 25K | zh→en | High (HY-MT style) |
-| HY-MT distillation (Fineweb) | 25K | zh→en | High |
-| HY-MT distillation (misc) | 37K | zh→en | High |
-| HY-MT distillation (Fineweb-edu) | 50K | en→zh | High |
-| HY-MT distillation (misc) | 19K | en→zh | High |
-| FineTranslations (Gemma3, filtered) | 40K | zh→en | Good |
-| SFT data (X-ALMA style) | 44K | both | Good |
-| **Total** | **~270K** | | |
+| File | Pairs | Description |
+|------|-------|-------------|
+| alma_combined_sft.jsonl | 44,624 | ALMA Human + X-ALMA bidirectional (current) |
+| xalma_sft.jsonl | 13,812 | X-ALMA only bidirectional |
+| ../private/sft_distill_ft.jsonl | 186,323 | HY-MT distillation + FineTranslations |
+| ../private/sft_comet90.jsonl | 42,363 | SFT data COMET≥0.90 |
 
-## Experiment Loop
+## ALMA Research Notes (from papers)
 
-Same as Interpreter/program.md:
-1. Modify training config
-2. Run training
-3. Evaluate on WMT22
-4. Record in results.tsv
-5. Keep or discard
+**ALMA (1st gen):**
+- Stage 1: 20B tokens monolingual (OSCAR), LLaMA-2-7B, 600K steps
+- Stage 2: ~7K parallel pairs per direction, 1 epoch, lr=2e-5 inverse_sqrt
+- Qwen3 doesn't need Stage 1 (already bilingual)
+
+**ALMA-R (2nd gen):**
+- CPO with kiwi_xcomet scorer, lr=1e-4, LoRA, beta=0.1
+- Gains ~0.03 COMET over SFT
+
+**X-ALMA (3rd gen):**
+- 50 languages, language-specific modules
+- 5-step training recipe with Adaptive-Rejection Preference Optimization
+- Uses plug-and-play LoRA adapters per language group
+
+**TranslateGemma:**
+- Freeze embedding during SFT
+- AdaFactor lr=0.0001, 200K steps
+- 30% general instruction data mixed in
+- RL with MetricX-QE + AutoMQM + ChrF + naturalness autorater
+
+**HY-MT:**
+- MT-oriented CPT + SFT + RL + ensemble RL
+- 1.8B model distilled from 7B
+- lr=1e-5, cosine_with_min_lr, mask_prompt
+- RegMix for data ratio optimization
 
 ## NEVER STOP
 
-Run experiments autonomously. 0.6B model trains fast (~10-20 min per epoch on 186K data). Iterate rapidly.
+Run experiments autonomously. Each takes 15-30 minutes. Iterate rapidly.

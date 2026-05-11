@@ -21,14 +21,17 @@ IGNORE_INDEX = -100
 
 
 class TranslationSFTDataset(Dataset):
-    """Chat-format translation dataset for Qwen3."""
+    """ChatML-format translation dataset for Qwen3 (base or instruct).
+    Format: <|im_start|>user\n{prompt}<|im_end|>\n<|im_start|>assistant\n{response}<|im_end|>
+    Loss only on assistant response (after <|im_start|>assistant\n).
+    Uses <|im_end|> as eos (following LLaMA-Factory's replace_eos=True for Qwen3).
+    """
 
     def __init__(self, data_file, tokenizer, max_seq_length=512):
         self.tokenizer = tokenizer
         self.max_seq_length = max_seq_length
         self.im_start_id = tokenizer.convert_tokens_to_ids("<|im_start|>")
         self.im_end_id = tokenizer.convert_tokens_to_ids("<|im_end|>")
-        self.nl_id = tokenizer.encode("\n", add_special_tokens=False)[0]
 
         with open(data_file, 'r', encoding='utf8') as f:
             self.data = [json.loads(line) for line in f if line.strip()]
@@ -37,57 +40,26 @@ class TranslationSFTDataset(Dataset):
     def __len__(self):
         return len(self.data)
 
-    def _build_tokens(self, messages):
-        """Build token sequence in ChatML format WITHOUT think tags.
-        Format: <|im_start|>user\n{content}<|im_end|>\n<|im_start|>assistant\n{content}<|im_end|>\n
-        """
-        all_ids = []
-        for msg in messages:
-            role = msg['role']
-            content = msg['content']
-            # <|im_start|>role\ncontent<|im_end|>\n
-            role_ids = self.tokenizer.encode(role, add_special_tokens=False)
-            content_ids = self.tokenizer.encode(content, add_special_tokens=False)
-            all_ids.append(self.im_start_id)
-            all_ids.extend(role_ids)
-            all_ids.append(self.nl_id)
-            all_ids.extend(content_ids)
-            all_ids.append(self.im_end_id)
-            all_ids.append(self.nl_id)
-        return all_ids
-
     def __getitem__(self, index):
         data = self.data[index]
         messages = data['messages']
+        user_content = messages[0]['content']
+        asst_content = messages[1]['content']
 
-        token_ids = self._build_tokens(messages)
-        tokens = torch.tensor(token_ids[:self.max_seq_length], dtype=torch.long)
+        # Build ChatML: <|im_start|>user\n{content}<|im_end|>\n<|im_start|>assistant\n{response}<|im_end|>
+        prefix = f"<|im_start|>user\n{user_content}<|im_end|>\n<|im_start|>assistant\n"
+        prefix_ids = self.tokenizer.encode(prefix, add_special_tokens=False)
+        response_ids = self.tokenizer.encode(asst_content, add_special_tokens=False)
 
-        # Build labels: only compute loss on assistant response
+        # response + <|im_end|> as eos
+        token_ids = prefix_ids + response_ids + [self.im_end_id]
+        token_ids = token_ids[:self.max_seq_length]
+        tokens = torch.tensor(token_ids, dtype=torch.long)
+
+        # Labels: IGNORE_INDEX for prefix, actual tokens for response + im_end
         labels = torch.full_like(tokens, IGNORE_INDEX)
-
-        # Find assistant response spans
-        # Pattern: <|im_start|> assistant \n ... <|im_end|>
-        i = 0
-        while i < len(tokens):
-            if tokens[i] == self.im_start_id:
-                # Check if this is assistant
-                # Next tokens should be "assistant" + \n
-                asst_ids = self.tokenizer.encode("assistant", add_special_tokens=False)
-                asst_len = len(asst_ids)
-                if i + 1 + asst_len + 1 < len(tokens):
-                    if tokens[i+1:i+1+asst_len].tolist() == asst_ids and tokens[i+1+asst_len] == self.nl_id:
-                        # Found assistant start, content begins after \n
-                        content_start = i + 1 + asst_len + 1
-                        # Find <|im_end|>
-                        j = content_start
-                        while j < len(tokens) and tokens[j] != self.im_end_id:
-                            j += 1
-                        # Label the content + im_end
-                        labels[content_start:j+1] = tokens[content_start:j+1]
-                        i = j + 1
-                        continue
-            i += 1
+        prefix_len = min(len(prefix_ids), len(tokens))
+        labels[prefix_len:] = tokens[prefix_len:]
 
         attention_mask = torch.ones_like(tokens, dtype=torch.bool)
         return dict(input_ids=tokens, labels=labels, attention_mask=attention_mask)
@@ -140,19 +112,37 @@ def train(args):
     )
 
     # Optimizer
-    optimizer = torch.optim.AdamW(
-        model.parameters(), lr=args.lr, betas=(0.9, 0.95),
-        eps=1e-8, weight_decay=args.weight_decay,
-    )
+    if args.optimizer == "adafactor":
+        from transformers import Adafactor
+        optimizer = Adafactor(
+            model.parameters(), lr=args.lr, relative_step=False,
+            scale_parameter=False, warmup_init=False, weight_decay=args.weight_decay,
+        )
+    else:
+        optimizer = torch.optim.AdamW(
+            model.parameters(), lr=args.lr, betas=(0.9, 0.95),
+            eps=1e-8, weight_decay=args.weight_decay,
+        )
 
-    # LR scheduler: cosine with min_lr
+    # LR scheduler
     min_lr_ratio = args.min_lr / args.lr if args.lr > 0 else 0
     def lr_lambda(step):
         if step < args.warmup_steps:
             return step / max(1, args.warmup_steps)
-        progress = (step - args.warmup_steps) / max(1, args.max_steps - args.warmup_steps)
-        return min_lr_ratio + (1.0 - min_lr_ratio) * 0.5 * (1.0 + math.cos(math.pi * progress))
+        if args.lr_scheduler == "inverse_sqrt":
+            return max(min_lr_ratio, (args.warmup_steps / max(step, 1)) ** 0.5)
+        else:  # cosine
+            progress = (step - args.warmup_steps) / max(1, args.max_steps - args.warmup_steps)
+            return min_lr_ratio + (1.0 - min_lr_ratio) * 0.5 * (1.0 + math.cos(math.pi * progress))
     scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda)
+
+    # Compute max_steps from epochs if not set
+    steps_per_epoch = len(train_loader) // args.gradient_accumulation_steps
+    if args.max_steps <= 0:
+        args.max_steps = steps_per_epoch * args.num_epochs
+    if args.warmup_steps <= 0:
+        args.warmup_steps = max(1, int(args.max_steps * args.warmup_ratio))
+    print(f"Training: {args.max_steps} steps ({args.num_epochs} epochs, {steps_per_epoch} steps/epoch), warmup={args.warmup_steps}")
 
     # Training loop
     model.train()
@@ -232,7 +222,8 @@ def train(args):
                                "--model_path", save_path,
                                "--testset", "wmt22",
                                "--direction", eval_dir,
-                               "--batch_size", "8"]
+                               "--batch_size", "8",
+                               "--max_samples", "500"]
                         print(f"[eval] Running {eval_dir}...")
                         result = subprocess.run(cmd, capture_output=True, text=True, timeout=1800)
                         for line in result.stdout.split('\n'):
@@ -262,10 +253,16 @@ if __name__ == "__main__":
     parser.add_argument("--batch_size", type=int, default=4)
     parser.add_argument("--gradient_accumulation_steps", type=int, default=8)
     parser.add_argument("--gradient_checkpointing", action="store_true")
-    parser.add_argument("--max_steps", type=int, default=1000)
-    parser.add_argument("--warmup_steps", type=int, default=50)
-    parser.add_argument("--lr", type=float, default=1e-5)
+    parser.add_argument("--max_steps", type=int, default=0, help="Max steps (0 = use num_epochs)")
+    parser.add_argument("--num_epochs", type=int, default=1)
+    parser.add_argument("--warmup_ratio", type=float, default=0.01)
+    parser.add_argument("--warmup_steps", type=int, default=0, help="Override warmup_ratio if > 0")
+    parser.add_argument("--lr", type=float, default=2e-5)
     parser.add_argument("--min_lr", type=float, default=1e-6)
+    parser.add_argument("--lr_scheduler", type=str, default="inverse_sqrt",
+                        choices=["inverse_sqrt", "cosine"])
+    parser.add_argument("--optimizer", type=str, default="adamw",
+                        choices=["adamw", "adafactor"])
     parser.add_argument("--weight_decay", type=float, default=0.01)
     parser.add_argument("--max_grad_norm", type=float, default=1.0)
     parser.add_argument("--logging_steps", type=int, default=10)
