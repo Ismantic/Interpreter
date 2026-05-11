@@ -17,3 +17,10 @@ v21-250	-	-	-	0.8505	discard	no mask_prompt, dropped below init
 v21-500	-	-	-	0.8370	reference	no mask_prompt final, val_loss=3.01
 p2v2-100	-	-	-	0.8593	keep	Phase2: freeze_embed from v21-150, mask_prompt, muon+adam 1e-5
 p2v2-500	-	-	-	0.8590	keep	Phase2: freeze_embed from v21-150, COMET stable 0.859x whole run
+p2v3-100	-	-	-	0.8338	discard	Phase2: from v21-500, lr=5e-5, COMET dropped
+p2v4-50	-	-	-	0.8351	discard	Phase2: from v21-500, SFT 8K, lr=1e-5, COMET dropped
+p2v6-100	-	-	-	0.8361	discard	Phase2: from v21-500, distill data, lr=1e-5, COMET dropped
+p2v7-200	-	-	-	0.8572	keep	Phase2: from v21-200, freeze_embed, SFT 44K, COMET=0.8572 > init
+p2v8-200	-	-	-	0.8579	keep	Phase2: from v21-200, full ft lr=1e-6, COMET90 data, COMET stable
+p2v9-100	-	-	-	0.8339	discard	Phase2: from v21-200, full ft lr=1e-5, COMET90, COMET crashed
+p2v10-150	-	-	-	0.8549	discard	Phase2: from v21-200, full ft lr=5e-6, COMET90, COMET dropped 0.003
