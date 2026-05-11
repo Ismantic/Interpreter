@@ -3,3 +3,4 @@ v4	0.6B-instruct	X-ALMA 14K	17.01	0.7649	29.84	0.8175	baseline	instruct model, X
 v6	0.6B-instruct	ALMA+X-ALMA 44K	17.36	0.7645	30.00	0.8187	discard	instruct, +ALMA Human barely helps
 base_v3	0.6B-Base	ALMA+X-ALMA 44K	18.03	0.7627	32.26	0.8227	keep	Base model, ChatML+im_end eos, best 0.6B
 1.7b_base_v2	1.7B-Base	ALMA+X-ALMA 44K	21.58	0.7924	39.82	0.8556	BEST	Base model, ChatML+im_end eos
+1.7b_freeze	1.7B-Base	ALMA+X-ALMA 44K	4.46	0.4148	3.34	0.4208	discard	Freeze embedding → completely broken

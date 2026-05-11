@@ -86,6 +86,12 @@ def train(args):
     if args.gradient_checkpointing:
         model.gradient_checkpointing_enable()
 
+    # Freeze embedding if requested (TranslateGemma approach)
+    if args.freeze_embedding:
+        for name, param in model.named_parameters():
+            if "embed" in name or "lm_head" in name:
+                param.requires_grad = False
+
     total_params = sum(p.numel() for p in model.parameters())
     trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     print(f"Model: {total_params/1e6:.1f}M params, {trainable_params/1e6:.1f}M trainable")
@@ -253,6 +259,8 @@ if __name__ == "__main__":
     parser.add_argument("--batch_size", type=int, default=4)
     parser.add_argument("--gradient_accumulation_steps", type=int, default=8)
     parser.add_argument("--gradient_checkpointing", action="store_true")
+    parser.add_argument("--freeze_embedding", action="store_true",
+                        help="Freeze embed_tokens + lm_head (TranslateGemma approach)")
     parser.add_argument("--max_steps", type=int, default=0, help="Max steps (0 = use num_epochs)")
     parser.add_argument("--num_epochs", type=int, default=1)
     parser.add_argument("--warmup_ratio", type=float, default=0.01)

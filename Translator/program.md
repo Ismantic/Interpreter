@@ -93,19 +93,27 @@ python eval.py --model_path ./output_base_vXX --testset wmt22 --direction both -
 
 ## ALMA Research Notes (from papers)
 
-**ALMA (1st gen):**
-- Stage 1: 20B tokens monolingual (OSCAR), LLaMA-2-7B, 600K steps
-- Stage 2: ~7K parallel pairs per direction, 1 epoch, lr=2e-5 inverse_sqrt
-- Qwen3 doesn't need Stage 1 (already bilingual)
+**ALMA (1st gen) — ICLR 2024:**
+- Stage 1: 20B tokens OSCAR monolingual, 600K steps, lr=2e-5 cosine
+- Stage 2: 15,406 zh-en parallel pairs (WMT'17-20 + Flores-200), 2 epochs, lr=2e-5 inverse_sqrt
+- Prompt: `Translate this from Chinese to English:\nChinese: {src}\nEnglish:`
+- Loss: only on target (prompt masked with -100)
+- Best zh→en COMET-22: 0.8021 (13B-LoRA), en→zh: 0.8596
+- Qwen3 skips Stage 1 (already bilingual)
 
-**ALMA-R (2nd gen):**
-- CPO with kiwi_xcomet scorer, lr=1e-4, LoRA, beta=0.1
-- Gains ~0.03 COMET over SFT
+**ALMA-R (2nd gen) — ICML 2024:**
+- CPO on ALMA-13B-LoRA, scorer: kiwi_xcomet (KIWI-XXL + XCOMET ensemble)
+- 2K preference triplets per direction from FLORES-200 (reference/GPT-4/ALMA candidates)
+- Hyperparams: lr=1e-4 LoRA, beta=0.1, 1 epoch, inverse_sqrt
+- CPO = DPO without reference model (memory efficient)
+- Best zh→en: 0.8095 (+0.007), en→zh: 0.8685 (+0.009)
 
-**X-ALMA (3rd gen):**
-- 50 languages, language-specific modules
-- 5-step training recipe with Adaptive-Rejection Preference Optimization
-- Uses plug-and-play LoRA adapters per language group
+**X-ALMA (3rd gen) — ICLR 2025:**
+- 5-step recipe: mono CPT base → mono CPT LS modules → pseudo-mono → SFT → ARPO
+- zh in Group 6 (Eurasian Mix: et,fi,ja,ka,ko,zh)
+- SFT data: ~7K pairs from Flores+NTREX+WMT test sets
+- ARPO: adaptive tau prevents over-rejection of dis-preferred style
+- Best zh→en: 0.824, en→zh: 0.875
 
 **TranslateGemma:**
 - Freeze embedding during SFT
