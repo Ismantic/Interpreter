@@ -28,9 +28,12 @@ Train Qwen3-Base (0.6B/1.7B) into a high-quality zh↔en translation model. Foll
 5. [ ] Compare base vs instruct results
 
 ### Phase B: ALMA-R CPO
-6. [ ] Generate candidates from best SFT model (temperature sampling)
-7. [ ] Score with COMET, build preference pairs
-8. [ ] CPO training (ALMA: lr=1e-4, LoRA, beta=0.1)
+6. [x] Generate candidates from best SFT model (temperature sampling) → 22K examples, 5 candidates each
+7. [x] Score with COMET, build preference pairs → 44K pairs, avg gap 0.147
+8. [ ] CPO training — **BLOCKED**: TRL DPOTrainer ref_model=None ≠ CPO. Need proper CPO with NLL loss.
+   - MUST use ALMA's `run_cpo_llmmt.py` or implement CPO loss manually
+   - CPO = DPO loss + NLL behavior cloning term (prevents model collapse)
+   - Both lr=1e-5 and lr=1e-4 with DPO ref_model=None broke model (COMET ~0.5)
 
 ### Phase C: TranslateGemma techniques
 9. [ ] Freeze Embedding SFT (TranslateGemma validated this approach)

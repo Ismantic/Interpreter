@@ -4,4 +4,5 @@ v6	0.6B-instruct	ALMA+X-ALMA 44K	17.36	0.7645	30.00	0.8187	discard	instruct, +AL
 base_v3	0.6B-Base	ALMA+X-ALMA 44K	18.03	0.7627	32.26	0.8227	keep	Base model, ChatML+im_end eos, best 0.6B
 1.7b_base_v2	1.7B-Base	ALMA+X-ALMA 44K	21.58	0.7924	39.82	0.8556	BEST	Base model, ChatML+im_end eos
 1.7b_freeze	1.7B-Base	ALMA+X-ALMA 44K	4.46	0.4148	3.34	0.4208	discard	Freeze embedding → completely broken
-1.7b_cpo	1.7B-Base+LoRA	CPO 44K pref	1.20	0.5320	1.01	0.5688	discard	CPO broke model. Need lr=1e-4 and proper CPO loss (not DPO ref_model=None)
+1.7b_cpo_v1	1.7B-Base+LoRA	CPO 44K pref lr=1e-5	1.20	0.5320	1.01	0.5688	discard	DPO ref_model=None broke model
+1.7b_cpo_v2	1.7B-Base+LoRA	CPO 44K pref lr=1e-4	1.44	0.4693	0.70	0.5957	discard	Same problem, lr=1e-4 even worse. DPO≠CPO
