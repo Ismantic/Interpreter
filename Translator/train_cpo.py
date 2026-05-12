@@ -134,14 +134,17 @@ def main(args):
         args.model_path, torch_dtype=torch.bfloat16,
     ).to(device)
 
-    # LoRA (ALMA-R style)
-    lora_config = LoraConfig(
-        r=16, lora_alpha=32, lora_dropout=0.05,
-        target_modules="all-linear",
-        task_type="CAUSAL_LM",
-    )
-    model = get_peft_model(model, lora_config)
-    model.print_trainable_parameters()
+    # LoRA or full fine-tuning
+    if not args.full_finetune:
+        lora_config = LoraConfig(
+            r=16, lora_alpha=32, lora_dropout=0.05,
+            target_modules="all-linear",
+            task_type="CAUSAL_LM",
+        )
+        model = get_peft_model(model, lora_config)
+    trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    total = sum(p.numel() for p in model.parameters())
+    print(f"Trainable: {trainable/1e6:.1f}M / {total/1e6:.1f}M ({trainable/total*100:.1f}%)")
 
     dataset = CPODataset(args.data_path, tokenizer, args.max_length)
     dataloader = DataLoader(
@@ -234,5 +237,6 @@ if __name__ == "__main__":
     parser.add_argument("--warmup_ratio", type=float, default=0.01)
     parser.add_argument("--logging_steps", type=int, default=50)
     parser.add_argument("--save_steps", type=int, default=500)
+    parser.add_argument("--full_finetune", action="store_true", help="Full fine-tune instead of LoRA")
     args = parser.parse_args()
     main(args)

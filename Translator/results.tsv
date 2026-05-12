@@ -13,3 +13,4 @@ WMT23_sft	1.7B-Base	ALMA+X-ALMA 44K	19.65	0.7863	40.74	0.8384	baseline	WMT23 SFT
 WMT23_cpo_v3	1.7B-Base+LoRA	self-gen 44K pref	20.39	0.8005	34.06	0.8463	BEST	WMT23 CPO v3 (gap to HY-MT: zh-en -0.005, en-zh -0.021)
 WMT23_cpo_xalma	1.7B-Base+LoRA	X-ALMA 30K pref	17.60	0.7940	32.11	0.8426	discard	X-ALMA off-policy worse than self-gen
 WMT23_cpo_alma_mix	1.7B-Base+LoRA	ALMA-R+X-ALMA 35K	18.06	0.7963	31.63	0.8442	discard	Mix also worse than self-gen
+WMT23_cpo_iter2	1.7B-CPOv3+LoRA	self-gen v2 44K	22.66	0.7983	40.16	0.8458	discard	Iterative round 2 no improvement
