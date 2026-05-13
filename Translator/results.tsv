@@ -15,3 +15,7 @@ WMT23_cpo_xalma	1.7B-Base+LoRA	X-ALMA 30K pref	17.60	0.7940	32.11	0.8426	discard
 WMT23_cpo_alma_mix	1.7B-Base+LoRA	ALMA-R+X-ALMA 35K	18.06	0.7963	31.63	0.8442	discard	Mix also worse than self-gen
 WMT23_cpo_iter2	1.7B-CPOv3+LoRA	self-gen v2 44K	22.66	0.7983	40.16	0.8458	discard	Iterative round 2 no improvement
 WMT23_cpo_full	1.7B-Base full	self-gen 44K	20.20	0.7936	37.70	0.8440	discard	Full finetune CPO worse than LoRA
+WMT23_sft_enhanced	1.7B-Base	ALMA+distill 112K	19.00	0.7769	35.47	0.8492	keep	More en→zh data: en-zh +0.011 but zh-en dropped
+WMT23_enhanced_cpo	1.7B-enhanced+LoRA	self-gen 44K	18.68	0.7949	33.79	0.8417	discard	CPO on enhanced SFT didn't help
+WMT23_sft_balanced	1.7B-Base	balanced 37K	15.51	0.7737	34.45	0.8489	discard	Balanced 50:50 but zh-en dropped more
+WMT23_balanced_cpo	1.7B-balanced+LoRA	self-gen 44K	18.20	0.7950	33.46	0.8380	discard	Balanced SFT + CPO worse than CPO v3
