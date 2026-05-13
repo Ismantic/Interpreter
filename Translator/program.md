@@ -1,135 +1,95 @@
-# Translator: Qwen3-Base → Chinese-English Translation Model
-
-Train Qwen3-Base (0.6B/1.7B) into a high-quality zh↔en translation model. Following ALMA → ALMA-R → X-ALMA → TranslateGemma → HY-MT methodology progression.
+# Translator: Qwen3-1.7B-Base → Chinese-English Translation Model
 
 ## Goal
 
-| Model | Size | zh→en COMET | en→zh COMET |
-|-------|------|-------------|-------------|
-| HY-MT1.5-1.8B | 1.8B | 0.8182 | 0.8745 |
-| ALMA-13B-R | 13B | TBD | TBD |
-| **Our target** | **0.6B/1.7B** | **0.80+** | **0.85+** |
+| Model | Size | WMT23 zh→en COMET | WMT23 en→zh COMET |
+|-------|------|-------------------|-------------------|
+| HY-MT1.5-1.8B | 1.8B | 0.8052 | 0.8669 |
+| **Our best (CPO v3)** | **1.7B** | **0.8005** | **0.8463** |
+| **Our best (Exp B)** | **1.7B** | **0.7918** | **0.8515** |
+
+Gap to HY-MT: zh→en -0.005 (CPO v3), en→zh -0.015 (Exp B)
 
 ## Setup
 
 - **Working dir**: `/home/tfbao/Shiyu/Interpreter/Translator/`
 - **Python**: `/home/tfbao/new/HY-MT/.venv/bin/python -u`
 - **GPU**: Single NVIDIA RTX 4090 (24GB)
-- **Base models**: `./Qwen3-0.6B-Base`, `./Qwen3-1.7B-Base` (downloaded via ModelScope)
-- **IMPORTANT**: Always use **Base** models, not instruct models. ALMA trains from base.
+- **Base model**: `./Qwen3-1.7B-Base`
+- **SFT model**: `./output_1.7b_base_v2` (ALMA 44K, 1 epoch, best SFT)
+- **Best CPO model**: `./output_1.7b_cpo_v3_merged`
 
-## Experiment Plan (methodology progression)
+## Training Pipeline
 
-### Phase A: ALMA-style SFT (current)
-1. ✅ v4: Qwen3-0.6B (instruct) + X-ALMA 14K → zh-en 0.7649, en-zh 0.8175
-2. ✅ v6: Qwen3-0.6B (instruct) + ALMA Human + X-ALMA 44K → zh-en 0.7645, en-zh 0.8187
-3. ✅ base_v1: Qwen3-0.6B-Base + ALMA Human + X-ALMA 44K → eval running
-4. 🔄 1.7b_base_v1: Qwen3-1.7B-Base + same data → training
-5. [ ] Compare base vs instruct results
+### Stage 1: SFT (DONE)
+- Data: `alma_combined_sft_clean.jsonl` — ALMA Human Parallel + X-ALMA = 44K pairs (WMT22/23 decontaminated)
+- Config: lr=2e-5, inverse_sqrt, warmup=0.01, 1 epoch, ChatML format, `<|im_end|>` as eos
+- Result: zh→en 0.7863, en→zh 0.8384
 
-### Phase B: ALMA-R CPO
-6. [x] Generate candidates from best SFT model (temperature sampling) → 22K examples, 5 candidates each
-7. [x] Score with COMET, build preference pairs → 44K pairs, avg gap 0.147
-8. [ ] CPO training — **BLOCKED**: TRL DPOTrainer ref_model=None ≠ CPO. Need proper CPO with NLL loss.
-   - MUST use ALMA's `run_cpo_llmmt.py` or implement CPO loss manually
-   - CPO = DPO loss + NLL behavior cloning term (prevents model collapse)
-   - Both lr=1e-5 and lr=1e-4 with DPO ref_model=None broke model (COMET ~0.5)
+### Stage 2: CPO (iterating)
+- Proper CPO = DPO preference loss + NLL behavior cloning on chosen
+- LoRA rank=16, all-linear, lr=1e-4, beta=0.1, nll_weight=1.0
+- Key finding: **rejected must be on-policy (our SFT model's output)**
 
-### Phase C: TranslateGemma techniques
-9. [ ] Freeze Embedding SFT (TranslateGemma validated this approach)
-10. [ ] Synthetic data: use HY-MT 1.8B as teacher to translate large-scale monolingual data
-11. [ ] COMET-QE data filtering (select source sentences that benefit most from translation)
+## CPO Experiment Plan
 
-### Phase D: HY-MT techniques
-12. [ ] Translation-oriented CPT with large-scale parallel data (WikiMatrix, MultiUN, etc.)
-13. [ ] HY-MT config SFT (lr=1e-5, cosine_with_min_lr, mask_prompt)
-14. [ ] Teacher distillation from HY-MT 1.8B (the model IS distilled from 7B)
-15. [ ] RegMix-style data ratio optimization
+### Completed
 
-## ALMA-aligned Training Config
+| Exp | Chosen source | Rejected source | Data size | zh→en | en→zh | Avg |
+|-----|--------------|----------------|-----------|-------|-------|-----|
+| CPO v3 | our model best (COMET) | our model worst | 44K (WMT17-21) | **0.8005** | 0.8463 | **0.8234** |
+| Exp B | ALMA-R GPT-4/ref best | our greedy | 6K (ALMA-R) | 0.7918 | **0.8515** | 0.8217 |
+| Exp C | ALMA-R+X-ALMA chosen | our greedy | 37K | 0.7925 | 0.8492 | 0.8209 |
 
-```bash
-python train.py \
-    --model_path ./Qwen3-0.6B-Base \
-    --train_data ./alma_combined_sft.jsonl \
-    --output_dir ./output_base_vXX \
-    --max_seq_length 512 \
-    --batch_size 4 --gradient_accumulation_steps 4 \
-    --gradient_checkpointing \
-    --num_epochs 1 \
-    --lr 2e-5 --min_lr 1e-6 --lr_scheduler inverse_sqrt \
-    --warmup_ratio 0.01 --weight_decay 0.01 \
-    --logging_steps 100 --save_steps 1000
-```
+### Running
 
-No inline eval. Eval after training:
-```bash
-python eval.py --model_path ./output_base_vXX --testset wmt22 --direction both --batch_size 32
-```
+**Exp D**: CPO v3 flow on ALMA-R sources with GPT-4 in candidate pool
+- Sources: ALMA-R 3065 sentences
+- Our SFT model generates 5 candidates (1 greedy + 4 sampling)
+- Pool: our 5 candidates + GPT-4 translation + ALMA-13B translation + reference
+- COMET scores all candidates in pool
+- chosen = pool highest, rejected = pool lowest
+- Expected: ~6K pairs with higher-quality chosen (GPT-4 level)
+- Status: generating candidates
 
-## Current Results
+### TODO
 
-| Experiment | Model | Data | zh→en COMET | en→zh COMET |
-|------------|-------|------|-------------|-------------|
-| v4 | 0.6B instruct | X-ALMA 14K | 0.7649 | 0.8175 |
-| v6 | 0.6B instruct | ALMA+X-ALMA 44K | 0.7645 | 0.8187 |
-| base_v1 | 0.6B-Base | ALMA+X-ALMA 44K | running | running |
-| 1.7b_base_v1 | 1.7B-Base | ALMA+X-ALMA 44K | training | training |
+**Exp E**: Add Codex translations to candidate pool
+- Same as Exp D but add Codex-generated translations to the pool
+- Codex translates all 3065 × 2 ALMA-R source sentences
+- Pool: our 5 + GPT-4 + ALMA + ref + **Codex**
+- COMET selects best/worst from expanded pool
+- **Reuse all data from Exp D, only generate Codex candidates incrementally**
+
+**Exp F**: Add Claude translations to candidate pool
+- Same as Exp E but add Claude-generated translations
+- Pool: our 5 + GPT-4 + ALMA + ref + Codex + **Claude**
+- Design high-quality translation prompt for Claude
+- **Reuse all data from Exp E, only generate Claude candidates incrementally**
 
 ## Key Findings
 
-1. **X-ALMA 14K data is sufficient for decent SFT** — 44K (+ ALMA Human) barely improves over 14K
-2. **186K distillation data causes COMET degradation** after 500 steps (v1 experiment)
-3. **Instruct vs Base**: must use Base model for SFT (ALMA does this)
-4. **inverse_sqrt scheduler** is ALMA default, not cosine
-5. **1 epoch is enough** for SFT (ALMA and TranslateGemma both use 1 epoch)
-6. **Training is fast**: 0.6B model + 44K data = 14 minutes on 4090
+1. **SFT**: ALMA 44K human parallel data is optimal. More data (distillation) hurts zh→en.
+2. **CPO loss**: Must include NLL behavior cloning. DPO ref_model=None breaks model.
+3. **Rejected must be on-policy**: Our model's output as rejected > ALMA/X-ALMA's rejected.
+4. **Chosen from stronger models helps en→zh**: GPT-4 chosen (Exp B) gave en→zh 0.8515.
+5. **More CPO data ≠ better**: 6K (Exp B) > 37K (Exp C). Quality > quantity.
+6. **LoRA > full finetune for CPO**: LoRA's regularization effect helps.
+7. **Data leakage**: SFT data leaked 17.5% into WMT22. Use WMT23 for eval.
 
-## Available Data
+## Data Files (preserve for reuse across experiments)
 
-| File | Pairs | Description |
-|------|-------|-------------|
-| alma_combined_sft.jsonl | 44,624 | ALMA Human + X-ALMA bidirectional (current) |
-| xalma_sft.jsonl | 13,812 | X-ALMA only bidirectional |
-| ../private/sft_distill_ft.jsonl | 186,323 | HY-MT distillation + FineTranslations |
-| ../private/sft_comet90.jsonl | 42,363 | SFT data COMET≥0.90 |
-
-## ALMA Research Notes (from papers)
-
-**ALMA (1st gen) — ICLR 2024:**
-- Stage 1: 20B tokens OSCAR monolingual, 600K steps, lr=2e-5 cosine
-- Stage 2: 15,406 zh-en parallel pairs (WMT'17-20 + Flores-200), 2 epochs, lr=2e-5 inverse_sqrt
-- Prompt: `Translate this from Chinese to English:\nChinese: {src}\nEnglish:`
-- Loss: only on target (prompt masked with -100)
-- Best zh→en COMET-22: 0.8021 (13B-LoRA), en→zh: 0.8596
-- Qwen3 skips Stage 1 (already bilingual)
-
-**ALMA-R (2nd gen) — ICML 2024:**
-- CPO on ALMA-13B-LoRA, scorer: kiwi_xcomet (KIWI-XXL + XCOMET ensemble)
-- 2K preference triplets per direction from FLORES-200 (reference/GPT-4/ALMA candidates)
-- Hyperparams: lr=1e-4 LoRA, beta=0.1, 1 epoch, inverse_sqrt
-- CPO = DPO without reference model (memory efficient)
-- Best zh→en: 0.8095 (+0.007), en→zh: 0.8685 (+0.009)
-
-**X-ALMA (3rd gen) — ICLR 2025:**
-- 5-step recipe: mono CPT base → mono CPT LS modules → pseudo-mono → SFT → ARPO
-- zh in Group 6 (Eurasian Mix: et,fi,ja,ka,ko,zh)
-- SFT data: ~7K pairs from Flores+NTREX+WMT test sets
-- ARPO: adaptive tau prevents over-rejection of dis-preferred style
-- Best zh→en: 0.824, en→zh: 0.875
-
-**TranslateGemma:**
-- Freeze embedding during SFT
-- AdaFactor lr=0.0001, 200K steps
-- 30% general instruction data mixed in
-- RL with MetricX-QE + AutoMQM + ChrF + naturalness autorater
-
-**HY-MT:**
-- MT-oriented CPT + SFT + RL + ensemble RL
-- 1.8B model distilled from 7B
-- lr=1e-5, cosine_with_min_lr, mask_prompt
-- RegMix for data ratio optimization
+| File | Content | Used by |
+|------|---------|---------|
+| alma_combined_sft_clean.jsonl | SFT data 36.8K clean | SFT |
+| cpo_preference.jsonl | Self-gen 44K pref (WMT17-21) | CPO v3 |
+| cpo_gpt4_vs_ours.jsonl | ALMA-R GPT4 chosen + our greedy 6K | Exp B |
+| cpo_exp_c.jsonl | ALMA-R+X-ALMA chosen + our greedy 37K | Exp C |
+| cpo_exp_d_candidates.jsonl | ALMA-R 5-cand + GPT4/ALMA/ref pool | Exp D (building) |
+| alma_r_preference.jsonl | ALMA-R original preference 4.7K | Reference |
+| xalma_preference.jsonl | X-ALMA original preference 30K | Reference |
 
 ## NEVER STOP
 
-Run experiments autonomously. Each takes 15-30 minutes. Iterate rapidly.
+Run experiments autonomously. Each CPO takes ~2 hours. Eval ~10 minutes. Iterate rapidly.
+Always reuse previously generated data. Never regenerate what already exists.

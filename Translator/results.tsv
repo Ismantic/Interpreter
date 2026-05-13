@@ -19,3 +19,5 @@ WMT23_sft_enhanced	1.7B-Base	ALMA+distill 112K	19.00	0.7769	35.47	0.8492	keep	Mo
 WMT23_enhanced_cpo	1.7B-enhanced+LoRA	self-gen 44K	18.68	0.7949	33.79	0.8417	discard	CPO on enhanced SFT didn't help
 WMT23_sft_balanced	1.7B-Base	balanced 37K	15.51	0.7737	34.45	0.8489	discard	Balanced 50:50 but zh-en dropped more
 WMT23_balanced_cpo	1.7B-balanced+LoRA	self-gen 44K	18.20	0.7950	33.46	0.8380	discard	Balanced SFT + CPO worse than CPO v3
+WMT23_exp_b	1.7B-Base+LoRA	GPT4-chosen vs greedy 6K	18.67	0.7918	38.00	0.8515	keep	en-zh improved +0.005! but zh-en dropped
+WMT23_exp_c	1.7B-Base+LoRA	ALMA-R+XALMA chosen vs greedy 37K	17.82	0.7925	34.28	0.8492	keep	More data but slightly worse than exp B
