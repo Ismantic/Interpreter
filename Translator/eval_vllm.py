@@ -75,17 +75,7 @@ def main():
     parser.add_argument("--no_comet", action="store_true")
     args = parser.parse_args()
 
-    # Load COMET
-    comet_model = None
-    if not args.no_comet:
-        print("Loading COMET model...")
-        from comet import load_from_checkpoint
-        ckpt = os.path.expanduser("~/.cache/comet/models--Unbabel--wmt22-comet-da/snapshots/2760a223ac957f30acfb18c8aa649b01cf1d75f2/checkpoints/model.ckpt")
-        if os.path.exists(ckpt):
-            comet_model = load_from_checkpoint(ckpt)
-            print("COMET loaded.")
-
-    # Load model with vLLM
+    # Load model with vLLM FIRST (before COMET to avoid GPU conflict)
     print(f"Loading model {args.model_path} with vLLM...")
     model = LLM(model=args.model_path, dtype="bfloat16", max_model_len=512)
 
@@ -119,7 +109,16 @@ def main():
     import torch; torch.cuda.empty_cache()
     import gc; gc.collect()
 
-    # Second pass: COMET scoring
+    # Second pass: COMET scoring (load after vLLM freed)
+    comet_model = None
+    if not args.no_comet:
+        print("Loading COMET model...")
+        from comet import load_from_checkpoint
+        ckpt = os.path.expanduser("~/.cache/comet/models--Unbabel--wmt22-comet-da/snapshots/2760a223ac957f30acfb18c8aa649b01cf1d75f2/checkpoints/model.ckpt")
+        if os.path.exists(ckpt):
+            comet_model = load_from_checkpoint(ckpt)
+            print("COMET loaded.")
+
     if comet_model is not None:
         for direction in directions:
             print(f"\nComputing COMET for {direction}...")
