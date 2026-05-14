@@ -18,9 +18,10 @@ Replace HY-MT1.5-1.8B tokenizer (120,818 → 65,007 vocab) and recover translati
 ### Phase 1: Freeze Transformer, Train Embedding
 - **Goal**: Minimize val_loss / BPB. COMET will degrade — that's expected and OK.
 - **Rationale**: Embedding needs to learn new token representations. Frozen transformer can't adapt, so COMET drops with more training. But BPB must improve for Phase 2 to work.
-- **Current best for Phase 2 input**: v21-200 (val_loss=3.43, en→zh COMET=0.8580)
-- **WARNING**: Training beyond step 200 irreversibly damages COMET. Phase 2 cannot recover it. v21-500 (val_loss=3.01) COMET dropped to 0.8370 and Phase 2 could not bring it back.
-- **Config**: `--freeze_transformer`, no mask_prompt, lr=2e-5 cosine(min=1e-5), 500 steps
+- **BREAKTHROUGH (v22)**: lr=1e-5 cosine(min=5e-6) + no mask_prompt keeps COMET stable at 0.8576-0.8579 for 500 steps. val_loss=4.09 at step 500. Can safely continue training more steps!
+- **Current best**: v22-500 (val_loss=4.09, COMET=0.8577). Continuing to v22-1500.
+- **CRITICAL**: lr=2e-5 causes COMET to crash after 150-200 steps. lr=1e-5 is the safe maximum.
+- **Config**: `--freeze_transformer`, no mask_prompt, lr=1e-5 cosine(min=5e-6)
 
 ### Phase 2: Freeze Embedding, Train Transformer
 - **Goal**: Recover and improve COMET using high-quality translation data.
