@@ -69,3 +69,13 @@ Translator/sft_*.jsonl
 private/
 *.pt
 *.safetensors
+
+# Translator: training logs, datasets, external repos, model weights
+Translator/logs_*.txt
+Translator/flores200_dataset/
+Translator/metricx_repo/
+Translator/models/
+Translator/Qwen3-0.6B/
+Translator/Qwen3-0.6B-Base/
+Translator/Qwen3-1.7B/
+Translator/Qwen3-1.7B-Base/

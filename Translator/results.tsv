@@ -21,3 +21,19 @@ WMT23_sft_balanced	1.7B-Base	balanced 37K	15.51	0.7737	34.45	0.8489	discard	Bala
 WMT23_balanced_cpo	1.7B-balanced+LoRA	self-gen 44K	18.20	0.7950	33.46	0.8380	discard	Balanced SFT + CPO worse than CPO v3
 WMT23_exp_b	1.7B-Base+LoRA	GPT4-chosen vs greedy 6K	18.67	0.7918	38.00	0.8515	keep	en-zh improved +0.005! but zh-en dropped
 WMT23_exp_c	1.7B-Base+LoRA	ALMA-R+XALMA chosen vs greedy 37K	17.82	0.7925	34.28	0.8492	keep	More data but slightly worse than exp B
+WMT23_hymt7b	HY-MT1.5-7B	-	21.31	0.8121	33.99	0.8679	baseline	HY-MT 7B on our eval setup (paper: 0.8052/0.8669)
+WMT23_cpo_full_expb	1.7B-Base full	GPT4-chosen 6K lr=1e-5 beta=0.05	14.35	0.7658	8.79	0.5921	discard	Full param CPO catastrophic on small clean data, en-zh collapsed
+WMT23_cpo_7b_lora	1.7B-Base+LoRA	HY-MT7B chosen 6K lr=1e-4 beta=0.05	10.21	0.7422	12.23	0.7495	discard	No COMET filter, HY-MT length+style mismatch confused model
+WMT23_sft_cqia	1.7B-Base	80%trans+20%CQIA 46K max_len=512	9.19	0.6852	9.35	0.6171	discard	Token imbalance: general=62% by tokens (avg 540 vs 78). Need filter <256.
+WMT23_cpo_v3_plus_7b	1.7B-Base+LoRA	v3 44K, 7B chosen replaces 25.7%	19.16	0.8017	32.69	0.8507	BEST	7B in candidate pool: zh-en new best, en-zh +0.0044 over v3. Best balanced model.
+WMT23_cpo_v3_7b_gpt4	1.7B-Base+LoRA	v3+7B 44K + GPT4-chosen 6K = 50K	17.73	0.7966	30.81	0.8478	discard	Adding GPT-4 6K diluted signal, worse than v3+7B. Quality>quantity again.
+WMT23_sft_cqia_v2	1.7B-Base	80%trans+20%CQIA token-balanced 40K	15.93	0.7612	15.28	0.7139	discard	Token-balanced better than v1 but still -0.025/-0.125 vs pure SFT. General data hurts.
+WMT23_sft_oasst_v2	1.7B-Base	80%trans+20%OpenAssistant token-balanced 41K	18.82	0.7724	13.12	0.6321	discard	zh-en ok (oasst has English) but en-zh collapsed. General data hurts dedicated translator.
+WMT23_cpo_full_v3_7b	1.7B-Base full	v3+7B 44K lr=1e-6 beta=0.1 nll=1.0	9.24	0.7102	7.25	0.5807	discard	Full-param CPO breaks model: preference term pushes down rejected (our own decent outputs) globally.
+WMT23_cpo_full_v3clean	1.7B-Base full	clean v3 44K lr=1e-6 beta=0.03 nll=1.0	6.75	0.6522	7.86	0.6099	discard	3rd full-param CPO attempt. acc oscillated 0/1 all run. Full-param CPO structurally fails on our data.
+WMT23_grpo_full_s400	1.7B full GRPO	COMET reward, G=8 beta=0.04 lr=1e-6 step400/1500	20.19	0.8050	33.47	0.8527	keep	Full-param GRPO works! +0.0033/+0.0020 over CPO v3+7B at only 27% progress.
+WMT23_grpo_full_s600	1.7B full GRPO	COMET reward step600/1500	20.31	0.8053	33.69	0.8540	BEST	GRPO step600. Multi-testset confirmed: COMET+BLEU+chrF all up on WMT23/24/Flores. Not overfitting.
+WMT23_grpo_from_sft_s400	1.7B full GRPO	from raw SFT, COMET reward step400	21.57	0.7897	41.13	0.8440	discard	GRPO-from-SFT works (+0.0034/+0.0056 vs SFT) but lags GRPO-from-CPO by 0.015/0.009. CPO pre-step helps.
+WMT23_grpo_from_sft_s600	1.7B full GRPO	from raw SFT, COMET reward step600	21.65	0.7897	41.07	0.8441	discard	GRPO-from-SFT stalled 400->600 on WMT23. Loses to GRPO-from-CPO on all 5 testsets. SFT->CPO->GRPO wins.
+WMT23_grpo_from_sft_s1500	1.7B full GRPO	from raw SFT, COMET reward step1500	21.48	0.7906	41.18	0.8448	discard	GRPO-from-SFT fully plateaued: 900 steps 600->1500 gained ~0. Stuck 0.79/0.844. Overfits 3K train prompts.
+WMT23_grpo_sft_tuned	1.7B full GRPO	from SFT, beta=0.02 lr=2e-6 6000 prompts	22.85	0.8003	41.97	0.8540	BEST	Tuned SFT->GRPO matches SFT->CPO->GRPO: en-zh tied, flores zh-en beats. CPO step can be dropped.

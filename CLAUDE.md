@@ -8,6 +8,10 @@ Tokenizer-replacement experiment for the HY-MT1.5-1.8B translation model. The pi
 
 This is a Python ML codebase despite the C/C++-flavored `.gitignore` (legacy from the sibling Tokenizer repo).
 
+The `Translator/` subdirectory is a **separate project** — training a 1.7B zh↔en
+translation model from `Qwen3-1.7B-Base` (SFT → CPO → GRPO). It shares only the venv.
+See `Translator/CLAUDE.md` when working there.
+
 ## External dependencies
 
 - **`piece_tokenizer`** — a compiled C++ Python extension from a sibling repo (`/home/tfbao/Shiyu/Tokenizer`). It is *not* on PyPI; it must be built and installed into the active venv. `replace_tokenizer.py`, `pretokenize.py`, `get_frozen_ids.py`, and `tokenizer_wrapper.py` all `import piece_tokenizer as pt`.
