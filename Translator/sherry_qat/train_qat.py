@@ -18,6 +18,7 @@ Usage:
 """
 import os, sys, json, math, time, argparse, signal
 import torch
+import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
 from transformers import AutoModelForCausalLM, AutoTokenizer, Adafactor
 
@@ -61,6 +62,16 @@ def collate(batch, pad_id):
     return {"input_ids": ids, "labels": labels, "attention_mask": ids.ne(pad_id)}
 
 
+def kd_loss(student_logits, teacher_logits, labels, temp):
+    """Forward-KL logit distillation, computed only on the assistant tokens."""
+    mask = labels[:, 1:].ne(IGNORE)               # [B, S-1]
+    s = student_logits[:, :-1, :][mask].float()   # [N, vocab]
+    t = teacher_logits[:, :-1, :][mask].float()
+    log_s = F.log_softmax(s / temp, dim=-1)
+    soft_t = F.softmax(t / temp, dim=-1)
+    return F.kl_div(log_s, soft_t, reduction="batchmean") * (temp * temp)
+
+
 def main(a):
     dev = "cuda"
     tok = AutoTokenizer.from_pretrained(a.model_path)
@@ -77,6 +88,17 @@ def main(a):
     print(f"method={a.method} | quantized {n} layers | zero_frac={st['zero_frac']:.4f} "
           f"| layer0 unique vals={st['unique_vals_layer0']} "
           f"| quant_params={st['quant_params']/1e9:.2f}B", flush=True)
+
+    teacher = None
+    if a.kd == "logit":
+        print("loading FP teacher for logit-KD ...", flush=True)
+        teacher = AutoModelForCausalLM.from_pretrained(
+            a.teacher_path or a.model_path, dtype=torch.bfloat16)
+        teacher.config.use_cache = False
+        teacher = teacher.to(dev).eval()
+        for p in teacher.parameters():
+            p.requires_grad_(False)
+        print(f"logit-KD: alpha={a.kd_alpha} temp={a.kd_temp}", flush=True)
 
     ds = KDDataset(a.data_path, tok, a.max_len)
     loader = DataLoader(ds, batch_size=a.batch_size, shuffle=True, num_workers=2,
@@ -111,7 +133,15 @@ def main(a):
         for batch in loader:
             batch = {k: v.to(dev) for k, v in batch.items()}
             out = model(**batch)
-            loss = out.loss / a.grad_accum
+            if teacher is not None:
+                with torch.no_grad():
+                    t_logits = teacher(input_ids=batch["input_ids"],
+                                       attention_mask=batch["attention_mask"]).logits
+                kd = kd_loss(out.logits, t_logits, batch["labels"], a.kd_temp)
+                loss_full = a.kd_alpha * kd + (1.0 - a.kd_alpha) * out.loss
+            else:
+                loss_full = out.loss
+            loss = loss_full / a.grad_accum
             loss.backward()
             micro += 1
             if micro % a.grad_accum == 0:
@@ -125,7 +155,7 @@ def main(a):
                 step += 1
                 if step % a.log_steps == 0:
                     el = time.time() - t0
-                    print(f"step {step}/{max_steps} | loss {out.loss.item():.4f} "
+                    print(f"step {step}/{max_steps} | loss {loss_full.item():.4f} "
                           f"| eps {anneal_eps(step, max_steps):.3f} | lr {lr_at(step):.2e} "
                           f"| {el:.0f}s | {step/el:.2f} it/s", flush=True)
                 if a.save_steps > 0 and step % a.save_steps == 0:
@@ -162,6 +192,11 @@ if __name__ == "__main__":
     p.add_argument("--max_steps", type=int, default=0)
     p.add_argument("--lr", type=float, default=1e-4)
     p.add_argument("--warmup_ratio", type=float, default=0.1)
+    p.add_argument("--kd", default="seq", choices=["seq", "logit"],
+                   help="seq=CE on teacher text; logit=KL to teacher logits")
+    p.add_argument("--kd_alpha", type=float, default=0.9, help="logit-KD: weight of KL vs CE")
+    p.add_argument("--kd_temp", type=float, default=2.0, help="logit-KD softmax temperature")
+    p.add_argument("--teacher_path", default="", help="logit-KD teacher (default: model_path)")
     p.add_argument("--log_steps", type=int, default=10)
     p.add_argument("--save_steps", type=int, default=500)
     main(p.parse_args())

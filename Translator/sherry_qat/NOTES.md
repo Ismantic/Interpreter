@@ -11,11 +11,27 @@ k-quant, no training) and **QAT** (a Sherry/SEQ port, training).
 | FP 原版 | 3.3 GB | 0.8054 | 0.8546 | — | — |
 | **4-bit** Q4_K_M | **1.03 GB** | 0.8015 | 0.8519 | −0.004 / −0.003 | 不用 |
 | **3-bit** Q3_K_M + imatrix | **0.90 GB** | 0.7889 | 0.8334 | −0.017 / −0.021 | 不用 |
-| **2-bit** SEQ-QAT (v3) | ~0.6 GB* | 0.7349 | 0.7666 | −0.071 / −0.088 | 11h QAT |
+| **2-bit** SEQ-QAT seq-KD (v3) | ~0.6 GB* | 0.7349 | 0.7666 | −0.071 / −0.088 | 11h QAT |
+| **2-bit** SEQ-QAT **logit-KD** | ~0.6 GB* | **0.7542** | **0.7968** | **−0.051 / −0.058** | 12h QAT |
 
 \* 2-bit 没有可部署文件（需自写 SEQ kernel）；只有 baked 的 3.4GB bf16 检查点。
 
-**结论:部署用 4-bit(实质无损)或 3-bit(小损失、更小)。2-bit 损失明显且无部署路径。**
+**结论:部署用 4-bit(实质无损)或 3-bit(小损失、更小)。2-bit 即使用 logit-KD 推到上限,
+仍差 FP 约 −0.05,且无部署路径。**
+
+### 2-bit 全测试集(logit-KD vs seq-KD v3,5 个测试集)
+
+| 测试集 | seq-KD v3 | logit-KD | Δ |
+|--------|-----------|----------|---|
+| wmt23 zh-en | 0.7349 | 0.7542 | +0.019 |
+| wmt23 en-zh | 0.7666 | 0.7968 | +0.030 |
+| wmt24 en-zh | 0.7119 | 0.7613 | +0.049 |
+| flores zh-en | 0.8441 | 0.8452 | +0.001 |
+| flores en-zh | 0.8495 | 0.8513 | +0.002 |
+
+logit-KD(KL 到 teacher 全 logit 分布,α=0.9,temp=2.0)在**难/带噪输入上提升明显**
+(WMT23/24 +0.02~0.05);干净输入(flores)seq-KD 已贴 FP,无空间。teacher 软分布
+比"只学译文文本"信息密度高,2-bit 学生在模糊处能学到 teacher 的软偏好。
 
 ## 两条路线
 
@@ -54,6 +70,9 @@ k-quant, no training) and **QAT** (a Sherry/SEQ port, training).
 - **2-bit QAT**:1 epoch 不够(eps 退火的纯量化收尾段会落在没见过的新数据上,
   收敛不了);3 epoch 才行。数据从 43K 扩到 133K 有效。Arenas 残差用**凸组合**
   `(1-eps)·quant + eps·fp`(论文是相加式,会爆),适合"保住已训好的模型"。
+- **logit-KD > seq-KD**:KL 到 teacher 全 logit 分布(`--kd logit`)比 CE-on-text
+  好 +0.02~0.05(难句尤其),把 2-bit 对 FP 的差距从 −0.08 收到 −0.05。这是
+  2-bit 的实际上限附近 —— 2/3-bit 断崖物理存在,补不平。
 - **评测坑**:① 走 llama-server 的 chat 接口会套错聊天模板 → 用裸 `/completion`;
   ② CUDA 版 llama.cpp 在 CUDA 13.2 下 flash-attention kernel 有 bug → 必须 `-fa off`。
 
@@ -68,14 +87,17 @@ llama-quantize [--imatrix imatrix.dat] f16.gguf out.gguf Q4_K_M|Q3_K_M
 **QAT(2-bit)**
 ```
 python build_qat_data.py            # teacher 蒸馏 -> qat_kd.jsonl
-python train_qat.py --method seq --w_bits 2 --num_epochs 3   # -> baked 普通 Qwen3
-python ../eval_multi.py --model_path output_qat_2bit_v3
+# 最佳:logit-KD(KL 到 teacher 全 logit 分布)
+python train_qat.py --method seq --w_bits 2 --num_epochs 3 --kd logit \
+    --kd_alpha 0.9 --kd_temp 2.0 --data_path qat_kd_v2.jsonl \
+    --output_dir output_qat_2bit_logitkd
+python ../eval_multi.py --model_path output_qat_2bit_logitkd
 ```
 
 ## 还能改进的(均未做)
 
 - **裁词表** — 省 ~130MB,正交、不掉质量。最划算。
-- **logit-KD** — 提 2-bit 质量(KD 样本效率更高)。
+- ~~logit-KD~~ — 已做,见上(+0.02~0.05,2-bit 差距收到 −0.05)。
 - **Q2_K + imatrix** — 补一个能部署的 2-bit。
 - `--tensor-type` 自定义混合精度 / 3-bit QAT — 3-bit 质量,提升小或要训练。
 - 抬天花板要改进 FP 模型本身(translator 项目的事)。
