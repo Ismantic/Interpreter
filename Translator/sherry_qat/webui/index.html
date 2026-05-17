@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>翻译 · Qwen3-1.7B (CPU / llama.cpp)</title>
+<style>
+  :root { --bg:#0f1115; --card:#1a1d24; --fg:#e6e6e6; --mut:#8b90a0;
+          --accent:#4f8cff; --border:#2c3038; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
+         background:var(--bg); color:var(--fg); }
+  .wrap { max-width:860px; margin:0 auto; padding:32px 20px; }
+  h1 { font-size:20px; font-weight:600; margin:0 0 4px; }
+  .sub { color:var(--mut); font-size:13px; margin-bottom:20px; }
+  .dir { display:flex; gap:8px; margin-bottom:14px; }
+  .dir button { flex:0 0 auto; padding:7px 16px; border-radius:8px;
+    border:1px solid var(--border); background:var(--card); color:var(--fg);
+    cursor:pointer; font-size:14px; }
+  .dir button.on { background:var(--accent); border-color:var(--accent);
+    color:#fff; font-weight:600; }
+  textarea { width:100%; height:150px; resize:vertical; padding:14px;
+    border-radius:10px; border:1px solid var(--border); background:var(--card);
+    color:var(--fg); font-size:15px; line-height:1.5; }
+  .row { display:flex; gap:12px; align-items:center; margin:14px 0; }
+  #go { padding:10px 28px; border:none; border-radius:9px; background:var(--accent);
+    color:#fff; font-size:15px; font-weight:600; cursor:pointer; }
+  #go:disabled { opacity:.5; cursor:default; }
+  #stat { color:var(--mut); font-size:13px; }
+  #out { white-space:pre-wrap; min-height:80px; padding:14px; border-radius:10px;
+    border:1px solid var(--border); background:var(--card); font-size:15px;
+    line-height:1.6; }
+  .err { color:#ff6b6b; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>翻译 · Qwen3-1.7B</h1>
+  <div class="sub">CPU 推理 · llama.cpp · 服务端 <code id="ep">http://localhost:8080</code></div>
+
+  <div class="dir">
+    <button id="d-zh" class="on" type="button">中文 → English</button>
+    <button id="d-en" type="button">English → 中文</button>
+  </div>
+
+  <textarea id="src" placeholder="输入要翻译的文本…"></textarea>
+
+  <div class="row">
+    <button id="go" type="button">翻译</button>
+    <span id="stat"></span>
+  </div>
+
+  <div id="out"></div>
+</div>
+
+<script>
+let dir = 'zh-en';
+const EP = '/v1/chat/completions';
+
+function setDir(d) {
+  dir = d;
+  document.getElementById('d-zh').classList.toggle('on', d === 'zh-en');
+  document.getElementById('d-en').classList.toggle('on', d === 'en-zh');
+}
+
+function buildInstr(text) {
+  return dir === 'zh-en'
+    ? `Translate the following text from Chinese to English.\nChinese: ${text}\nEnglish:`
+    : `Translate the following text from English to Chinese.\nEnglish: ${text}\nChinese:`;
+}
+
+async function translate() {
+  const text = document.getElementById('src').value.trim();
+  const out = document.getElementById('out');
+  const stat = document.getElementById('stat');
+  const go = document.getElementById('go');
+  if (!text) { out.textContent = ''; return; }
+
+  go.disabled = true;
+  stat.textContent = '翻译中…';
+  out.className = '';
+  out.textContent = '';
+  const t0 = performance.now();
+
+  try {
+    const resp = await fetch(EP, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        messages: [{ role: 'user', content: buildInstr(text) }],
+        temperature: 0,
+        max_tokens: 512,
+        stream: false
+      })
+    });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json();
+    out.textContent = (data.choices[0].message.content || '').trim();
+    const dt = ((performance.now() - t0) / 1000).toFixed(1);
+    const n = data.usage ? data.usage.completion_tokens : '?';
+    stat.textContent = `${dt}s · ${n} tokens`;
+  } catch (e) {
+    out.className = 'err';
+    out.textContent = '请求失败：' + e.message +
+      '\n\n请确认已运行  ./serve_cpu.sh  且服务在 localhost:8080。';
+    stat.textContent = '';
+  } finally {
+    go.disabled = false;
+  }
+}
+
+// wire up all controls via addEventListener (inline onclick is blocked here)
+document.getElementById('go').addEventListener('click', translate);
+document.getElementById('d-zh').addEventListener('click', () => setDir('zh-en'));
+document.getElementById('d-en').addEventListener('click', () => setDir('en-zh'));
+
+// Ctrl/Cmd+Enter to translate
+document.getElementById('src').addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') translate();
+});
+</script>
+</body>
+</html>

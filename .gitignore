@@ -79,3 +79,14 @@ Translator/Qwen3-0.6B/
 Translator/Qwen3-0.6B-Base/
 Translator/Qwen3-1.7B/
 Translator/Qwen3-1.7B-Base/
+
+# sherry_qat: quant artifacts (models, GGUF, KD data, logs) -- code only is tracked
+Translator/sherry_qat/output_*/
+Translator/sherry_qat/gguf/
+Translator/sherry_qat/__pycache__/
+Translator/sherry_qat/smoke_*/
+Translator/sherry_qat/*.jsonl
+Translator/sherry_qat/*.json
+Translator/sherry_qat/*.dat
+Translator/sherry_qat/calib*.txt
+Translator/sherry_qat/logs_*.txt
