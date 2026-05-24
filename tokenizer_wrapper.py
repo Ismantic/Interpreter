@@ -18,7 +18,14 @@ class PieceTokenizerWrapper:
             model_file = os.path.join(model_dir, "piece_mt.model")
         if not os.path.exists(model_file):
             raise FileNotFoundError(f"No piece model found in {model_dir}")
-        self._tok.load(model_file)
+
+        # Optional CN segmentation dict — without it, encode is O(n^2) on long
+        # input because the tokenizer skips pre-splitting entirely.
+        cn_dict = os.path.join(model_dir, "dict.txt")
+        if os.path.exists(cn_dict):
+            self._tok.load(model_file, cn_dict)
+        else:
+            self._tok.load(model_file)
 
         # Load token mapping
         mapping_file = os.path.join(model_dir, "token_mapping.json")
@@ -57,7 +64,18 @@ class PieceTokenizerWrapper:
             special = {self.bos_token_id, self.eos_token_id, self.pad_token_id,
                        self.user_token_id, self.assistant_token_id, self.system_token_id}
             ids = [i for i in ids if i not in special]
-        return self._tok.decode(ids)
+        try:
+            return self._tok.decode(ids)
+        except UnicodeDecodeError:
+            # Model emitted byte-fallback piece(s) that don't form valid UTF-8.
+            # Per-piece fallback: keep ids that decode cleanly, drop the rest.
+            parts = []
+            for i in ids:
+                try:
+                    parts.append(self._tok.id_to_piece(i))
+                except UnicodeDecodeError:
+                    continue
+            return "".join(parts).replace("▁", " ")
 
     def apply_chat_template(self, messages, tokenize=True, add_generation_prompt=False, **kwargs):
         """Build chat-formatted token sequence from messages."""

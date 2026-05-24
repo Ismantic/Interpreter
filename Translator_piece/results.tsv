@@ -1,0 +1,10 @@
+stage	model	testset	zh_en_bleu	zh_en_comet	en_zh_bleu	en_zh_comet	notes
+baseline_sft	../Translator/output_1.7b_base_v2	wmt23	21.58	0.7924	39.82	0.8556	Translator baseline SFT (Qwen3-1.7B + ALMA 1 epoch)
+baseline_cpo	../Translator/output_1.7b_cpo_v3_plus_7b_merged	wmt23	19.16	0.8017	32.69	0.8507	Translator baseline CPO (v3+7B LoRA merged)
+baseline_grpo	../Translator/output_1.7b_grpo_sft_tuned	wmt23	22.85	0.8003	41.97	0.8540	Translator baseline GRPO (SFT-tuned BEST)
+base_v18tie_5shot	Summer/phase2_ckpt_v18_tie (5-shot completion)	wmt23	19.60	0.7834	40.99	0.8377	Summer 测,WMT23 全集 base+5shot 上限参考
+piece_tie_sft	./output_v18_tie_sft	wmt23	19.34	0.7762	40.09	0.8392	v18_tie SFT (1577M); vs baseline SFT: zh-en -2.24/-0.016 en-zh +0.27/-0.016
+piece_tie_cpo	./output_v18_tie_cpo_v3_plus_7b_merged	wmt23	18.11	0.7941	31.38	0.8480	v18_tie CPO; vs baseline CPO: zh-en -1.05/-0.008 en-zh -1.31/-0.003
+piece_tie_grpo	./output_v18_tie_grpo_full	wmt23	18.43	0.7967	31.79	0.8511	v18_tie GRPO; vs baseline GRPO: zh-en -1.88/-0.009 en-zh -1.90/-0.003; vs 5shot COMET +0.013 两向
+piece_tie_grpo_r2	./output_v18_tie_grpo_full_r2	wmt23	18.59	0.7973	31.84	0.8514	2nd round GRPO from R1; vs R1: zh-en +0.16/+0.0006 en-zh +0.05/+0.0003 (plateau, 2nd round 收益在噪声内)
+piece_tie_grpo_kiwi	./output_v18_tie_grpo_kiwi	wmt23	18.25	0.7972	31.60	0.8516	GRPO with dual reward (COMET 1.0 + cometkiwi 1.0 + rep 0.3); from CPO-merged

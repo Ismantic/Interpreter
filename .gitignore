@@ -90,3 +90,13 @@ Translator/sherry_qat/*.json
 Translator/sherry_qat/*.dat
 Translator/sherry_qat/calib*.txt
 Translator/sherry_qat/logs_*.txt
+
+# Translator_piece: training/eval outputs, logs, papers — code only is tracked
+Translator_piece/output_*/
+Translator_piece/eval_*.log
+Translator_piece/*_run.log
+Translator_piece/chain_*.log
+Translator_piece/kiwi_chain.log
+Translator_piece/papers/
+Translator_piece/__pycache__/
+Translator_piece/smoke_logs/
