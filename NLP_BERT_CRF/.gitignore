@@ -1,0 +1,17 @@
+# Model weights (re-downloadable from HuggingFace)
+macbert-large/
+roberta-wwm-ext/
+
+# Training outputs / checkpoints
+output_*/
+
+# Data files (regenerable from Wapic repo)
+data/
+
+# Logs
+*.log
+nohup*.log
+
+# Python cache
+__pycache__/
+*.pyc
