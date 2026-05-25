@@ -163,8 +163,12 @@ def main():
         dev.items = dev.items[:args.limit]
     print(f"  {len(dev)} dev samples\n")
 
-    print(f"Loading MacBERT-CRF {args.ckpt} ...")
-    tokenizer = AutoTokenizer.from_pretrained(args.model_path, use_fast=False)
+    print(f"Loading model {args.ckpt} ...")
+    if os.path.exists(os.path.join(args.model_path, "piece.model")):
+        from piece_tokenizer_adapter import PieceTokenizerAdapter
+        tokenizer = PieceTokenizerAdapter(args.model_path)
+    else:
+        tokenizer = AutoTokenizer.from_pretrained(args.model_path, use_fast=False)
     device = torch.device("cuda")
     model = BertCRF(args.model_path, num_tags=4).to(device)
     model.load_state_dict(torch.load(args.ckpt, map_location=device))

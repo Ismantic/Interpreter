@@ -20,7 +20,12 @@ def main():
     ap.add_argument("--limit", type=int, default=0)
     args = ap.parse_args()
 
-    tokenizer = AutoTokenizer.from_pretrained(args.model_path, use_fast=False)
+    import os
+    if os.path.exists(os.path.join(args.model_path, "piece.model")):
+        from piece_tokenizer_adapter import PieceTokenizerAdapter
+        tokenizer = PieceTokenizerAdapter(args.model_path)
+    else:
+        tokenizer = AutoTokenizer.from_pretrained(args.model_path, use_fast=False)
     dev_ds = CWSDataset(args.dev_jsonl)
     if args.limit:
         dev_ds.items = dev_ds.items[:args.limit]

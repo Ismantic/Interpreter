@@ -80,7 +80,11 @@ def main():
     out_dir = Path(args.output_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    tokenizer = AutoTokenizer.from_pretrained(args.model_path, use_fast=False)
+    if os.path.exists(os.path.join(args.model_path, "piece.model")):
+        from piece_tokenizer_adapter import PieceTokenizerAdapter
+        tokenizer = PieceTokenizerAdapter(args.model_path)
+    else:
+        tokenizer = AutoTokenizer.from_pretrained(args.model_path, use_fast=False)
     print(f"Tokenizer: vocab={tokenizer.vocab_size} pad={tokenizer.pad_token_id} "
           f"unk={tokenizer.unk_token_id}")
 
