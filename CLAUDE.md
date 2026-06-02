@@ -14,7 +14,7 @@ See `Translator/CLAUDE.md` when working there.
 
 ## External dependencies
 
-- **`piece_tokenizer`** — a compiled C++ Python extension from a sibling repo (`/home/tfbao/Shiyu/Tokenizer`). It is *not* on PyPI; it must be built and installed into the active venv. `replace_tokenizer.py`, `pretokenize.py`, `get_frozen_ids.py`, and `tokenizer_wrapper.py` all `import piece_tokenizer as pt`.
+- **`piece_tokenizer`** — a compiled C++ Python extension from a sibling repo (`/home/tfbao/Shiyu/PieceTokenizer`). It is *not* on PyPI; it must be built and installed into the active venv. `replace_tokenizer.py`, `pretokenize.py`, `get_frozen_ids.py`, and `tokenizer_wrapper.py` all `import piece_tokenizer as pt`.
 - **Project venv** is hardcoded in the `Makefile` and `run_eval.sh`: `/home/tfbao/new/HY-MT/.venv/bin/python`. Use it (or activate it) when running scripts directly — it has `torch`, `transformers`, `sacrebleu`, `unbabel-comet`, and the compiled `piece_tokenizer`.
 - **Base model weights** (`HY-MT1.5-1.8B/`, `HY-MT1.5-1.8B-new-tok/`) and the `private/` directory (training data, checkpoints) are git-ignored — they live on disk only.
 

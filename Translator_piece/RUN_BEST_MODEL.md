@@ -43,7 +43,7 @@ PROMPT_EN2ZH = "Translate the following text from English to Chinese.\nEnglish: 
 | 依赖 | 用途 |
 |------|------|
 | `/home/tfbao/new/HY-MT/.venv/` | venv（torch / transformers / vllm / sacrebleu / unbabel-comet） |
-| `piece_tokenizer`（C++ 扩展，装在 venv 里） | PieceTokenizer 编解码；源码在 `/home/tfbao/Shiyu/Tokenizer/` |
+| `piece_tokenizer`（C++ 扩展，装在 venv 里） | PieceTokenizer 编解码；源码在 `/home/tfbao/Shiyu/PieceTokenizer/` |
 | `Interpreter/tokenizer_wrapper.py` | `PieceTokenizerWrapper` —— HF 风格的薄封装 |
 | `Translator_piece/eval_vllm_piece.py` | WMT 评测脚本（vLLM） |
 
@@ -59,7 +59,7 @@ PROMPT_EN2ZH = "Translate the following text from English to Chinese.\nEnglish: 
 /home/tfbao/new/HY-MT/.venv/bin/python -c "import torch, transformers, vllm, piece_tokenizer; print('ok')"
 ```
 
-若 `piece_tokenizer` 报错，进 `/home/tfbao/Shiyu/Tokenizer/` 按那边 README 重编译并 `pip install -e .`。
+若 `piece_tokenizer` 报错，进 `/home/tfbao/Shiyu/PieceTokenizer/` 按那边 README 重编译并 `pip install -e .`。
 
 ### Level 2 — Tokenizer 编解码
 
@@ -172,7 +172,7 @@ $PY -u eval_vllm_piece.py \
 
 | 现象 | 原因 / 处理 |
 |------|------------|
-| `ImportError: piece_tokenizer` | venv 没装好。`cd /home/tfbao/Shiyu/Tokenizer && pip install -e .` |
+| `ImportError: piece_tokenizer` | venv 没装好。`cd /home/tfbao/Shiyu/PieceTokenizer && pip install -e .` |
 | `No piece model found in ...` | model_path 写错了，或者 `piece.model` 没拷过来 |
 | vLLM 报 tokenizer 相关错误 | 确认 `LLM(..., skip_tokenizer_init=True)`（`eval_vllm_piece.py` 已正确设置） |
 | 输出乱码 / 一直停不下来 | `eos_token_id=2` 没传；prompt 模板和训练不一致；或 `apply_chat_template(..., add_generation_prompt=True)` 漏了 |
