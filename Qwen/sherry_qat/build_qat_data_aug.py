@@ -8,7 +8,7 @@ import json, time
 from vllm import LLM, SamplingParams
 
 T = "/home/tfbao/Shiyu/Interpreter/Qwen"
-TEACHER = f"{T}/output_1.7b_grpo_full"
+TEACHER = f"{T}/checkpoints/output_1.7b_grpo_full"
 KD = f"{T}/sherry_qat/qat_kd.jsonl"
 
 PROMPT = {"zh-en": "Translate the following text from Chinese to English.\nChinese: {s}\nEnglish:",

@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Train a 1.7B zh↔en translation model from `Qwen3-1.7B-Base` that closes the gap to
 `HY-MT1.5-1.8B` (the 1.8B reference: WMT23 zh→en 0.8052, en→zh 0.8669). This is a
-separate effort from the parent `../` tokenizer-replacement repo — only the venv is shared.
+separate project from the sibling `../HYMT/` (ReTok) and `../ReTok/` folders — only the venv is shared.
 
 Pipeline: **SFT → CPO (LoRA) → GRPO (full-param)**. Each stage is a self-contained
 script; checkpoints flow between stages by path.

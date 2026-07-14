@@ -2,8 +2,8 @@
 Translation SFT training for Qwen3-0.6B.
 Minimal script: full fine-tuning with mask_prompt on translation data.
 
-Usage:
-    python train.py --train_data ../private/sft_distill_ft.jsonl --output_dir ./checkpoints/output_v1
+Usage (run from the Qwen/ root):
+    python train/train.py --train_data ./data/alma_combined_sft_clean.jsonl --output_dir ./checkpoints/output_1.7b_base_v2
 """
 import os
 import sys

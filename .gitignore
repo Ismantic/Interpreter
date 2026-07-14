@@ -78,6 +78,7 @@ Qwen/sherry_qat/*.jsonl
 Qwen/sherry_qat/*.json
 Qwen/sherry_qat/*.dat
 Qwen/sherry_qat/calib*.txt
+Qwen/sherry_qat/qat_calib_source/
 Qwen/sherry_qat/logs_*.txt
 
 # ReTok: training/eval outputs, logs, papers, copied training data — code only is tracked

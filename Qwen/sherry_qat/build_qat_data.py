@@ -12,7 +12,7 @@ import json, sys, time
 from vllm import LLM, SamplingParams
 
 T = "/home/tfbao/Shiyu/Interpreter/Qwen"
-TEACHER = f"{T}/output_1.7b_grpo_full"
+TEACHER = f"{T}/checkpoints/output_1.7b_grpo_full"
 OUT = f"{T}/sherry_qat/qat_kd.jsonl"
 
 

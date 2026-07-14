@@ -178,7 +178,7 @@ def main(a):
 
 if __name__ == "__main__":
     p = argparse.ArgumentParser()
-    p.add_argument("--model_path", default=f"{T}/output_1.7b_grpo_full")
+    p.add_argument("--model_path", default=f"{T}/checkpoints/output_1.7b_grpo_full")
     p.add_argument("--data_path", default=f"{T}/sherry_qat/qat_kd.jsonl")
     p.add_argument("--output_dir", default=f"{T}/sherry_qat/output_qat_2bit")
     p.add_argument("--method", default="seq", choices=["sherry", "seq"],

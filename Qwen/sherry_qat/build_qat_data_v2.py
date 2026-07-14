@@ -1,7 +1,7 @@
-"""Stage D: build a much larger KD/QAT dataset from the private/ source pools.
+"""Stage D: build a much larger KD/QAT dataset from the local qat_calib_source/ pool.
 
 KD needs only SOURCE sentences (the FP teacher generates the targets). We sweep
-private/*.txt, auto-detect zh/en per line, sentence-split paragraphs, filter for
+qat_calib_source/*.txt, auto-detect zh/en per line, sentence-split paragraphs, filter for
 length / language purity / junk, dedup, balance the two directions, then
 teacher-distill. Failed teacher outputs are dropped. Merged with the existing
 43K -> qat_kd_v2.jsonl.
@@ -10,8 +10,8 @@ import json, re, glob, random, time
 from vllm import LLM, SamplingParams
 
 T = "/home/tfbao/Shiyu/Interpreter/Qwen"
-PRIV = "/home/tfbao/Shiyu/Interpreter/HYMT/private"
-TEACHER = f"{T}/output_1.7b_grpo_full"
+PRIV = f"{T}/sherry_qat/qat_calib_source"   # self-contained calib text (copied from the ReTok/HYMT private pool)
+TEACHER = f"{T}/checkpoints/output_1.7b_grpo_full"
 EXISTING = f"{T}/sherry_qat/qat_kd.jsonl"
 OUT = f"{T}/sherry_qat/qat_kd_v2.jsonl"
 TARGET_PER_DIR = 48000           # ~48K zh-source + ~48K en-source (+43K existing ~= 130K)

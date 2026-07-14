@@ -91,7 +91,7 @@ python build_qat_data.py            # teacher 蒸馏 -> qat_kd.jsonl
 python train_qat.py --method seq --w_bits 2 --num_epochs 3 --kd logit \
     --kd_alpha 0.9 --kd_temp 2.0 --data_path qat_kd_v2.jsonl \
     --output_dir output_qat_2bit_logitkd
-python ../eval_multi.py --model_path output_qat_2bit_logitkd
+python ../eval/eval_multi.py --model_path output_qat_2bit_logitkd
 ```
 
 ## 还能改进的(均未做)
