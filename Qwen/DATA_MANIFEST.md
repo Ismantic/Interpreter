@@ -68,6 +68,35 @@
 | `xalma_5cand.jsonl` | 30555 | X-ALMA 5候选数据 | 参考 |
 | `xalma_selfgen_scored.jsonl` | 30531 | X-ALMA自生成+COMET打分 | 早期 |
 
+### CPO 数据是怎么构建的（self-gen 偏好对）
+
+CPO 数据**不是外部数据集，是模型自生成（on-policy）的偏好对**：
+
+1. **源句池**：`data_build/generate_candidates.py` 用 sacrebleu 拉 **WMT17/18/19/20/21**
+   五届测试集的源句（zh→en + en→zh 双向）。WMT22/23 留作评测，不进训练。
+2. **生成候选**：对每个源句，用 **SFT 模型**（`checkpoints/output_1.7b_base_v2`）带
+   temperature 采样生成 **5 个候选译文** → `cpo_candidates.jsonl`。
+3. **选优**：`data_build/build_cpo_data.py` 用 **COMET 给 5 候选打分**，best→chosen、
+   worst→rejected → `cpo_preference.jsonl`（= CPO v3 基底）。
+4. **7B 增强**：`hymt7b_translate_cpo_sources.py` 用 `models/HY-MT1.5-7B` 翻译同一批源句，
+   `build_cpo_v3_plus_7b.py` 把其中 **COMET 更优的 25.7% chosen 替换成 7B 译文** →
+   `cpo_v3_plus_7b.jsonl`（**采用**）。
+
+### 关键结论：HY-MT1.5-7B 数据的收益是**有条件**的
+
+7B 数据**用对了才有小收益，裸用反而有害**（见 `results.tsv`）：
+
+| 版本 | zh→en COMET | en→zh COMET | 结论 |
+|------|-----------|-----------|------|
+| `cpo_v3`（纯自生成） | 0.8005 | 0.8463 | 基底 |
+| `cpo_v3_plus_7b`（COMET 过滤后 7B 替换 25.7% chosen） | **0.8017** | **0.8507** | **采用**，+0.0044 en-zh，best balanced |
+| `cpo_7b_lora`（7B chosen，**无 COMET 过滤**） | 0.7422 | 0.7495 | 弃用：长度/风格不匹配，模型被带偏 |
+| `cpo_v3_7b_gpt4`（v3+7B 再加 GPT-4 6K） | 0.7966 | 0.8478 | 弃用：稀释信号，质量>数量 |
+
+- 收益依赖两个条件：(a) 必须 **COMET 过滤**；(b) 只**替换一部分 chosen** 融进自生成池。
+- 幅度不大（~+0.004 COMET）；真正的大提升在后续 **GRPO**。
+- 因此 `models/HY-MT1.5-7B` 是**可选增强**——只用纯自生成 `cpo_v3` 也能训出接近的模型。
+
 ---
 
 ## 四、GRPO 数据
