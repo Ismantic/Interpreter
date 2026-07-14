@@ -16,6 +16,29 @@ script; checkpoints flow between stages by path.
   Read both before starting work — they hold the accumulated findings, and updating
   them after each experiment is part of the workflow.
 
+## Directory layout
+
+Code and artifacts are separated. **Run every command from this `Qwen/` root** — all
+paths (in scripts, defaults, and the commands below) are relative to it.
+
+```
+Qwen/
+├── train/        train.py  train_cpo.py  train_grpo.py  merge_lora_qwen3.py
+├── eval/         eval_vllm.py  eval_multi.py  eval.py  eval_hymt7b.py
+│                 eval_cpo_v3_plus_7b.sh  translate.py   (interactive demo)
+├── data_build/   build_cpo_*.py  build_grpo_data.py  generate_candidates.py
+│                 hymt7b_translate_*.py
+├── data/         *.jsonl / *.json training + preference + GRPO data   (git-ignored)
+├── checkpoints/  output_*/ model checkpoints                          (git-ignored)
+├── datasets/     Qwen3-*-Base, ALMA-*, X-ALMA-*, flores200_dataset, … (git-ignored)
+├── logs/         *.txt run/eval logs                                  (git-ignored)
+├── sherry_qat/   downstream low-bit quantization sub-experiment (separate; see its NOTES.md)
+└── CLAUDE.md  program.md  results.tsv  DATA_MANIFEST.md  run_experiments.sh
+```
+
+Quick model demo: `$PY -u eval/translate.py --model_path ./checkpoints/output_1.7b_grpo_full`
+(type sentences, zh↔en auto-detected).
+
 ## Setup
 
 - **venv** (not on PATH; always invoke explicitly): `/home/tfbao/new/HY-MT/.venv/bin/python -u`.
@@ -34,29 +57,29 @@ script; checkpoints flow between stages by path.
 PY=/home/tfbao/new/HY-MT/.venv/bin/python
 
 # SFT: full fine-tune Qwen3-1.7B-Base on ChatML translation pairs (1 epoch — see below)
-$PY -u train.py --model_path ./Qwen3-1.7B-Base --train_data ./alma_combined_sft_clean.jsonl \
-  --output_dir ./output_1.7b_base_v2 --num_epochs 1 --lr 2e-5 --lr_scheduler inverse_sqrt \
+$PY -u train/train.py --model_path ./datasets/Qwen3-1.7B-Base --train_data ./data/alma_combined_sft_clean.jsonl \
+  --output_dir ./checkpoints/output_1.7b_base_v2 --num_epochs 1 --lr 2e-5 --lr_scheduler inverse_sqrt \
   --batch_size 2 --gradient_accumulation_steps 8 --gradient_checkpointing
 
 # CPO: LoRA preference training on top of the SFT model
-$PY -u train_cpo.py --model_path ./output_1.7b_base_v2 --data_path ./cpo_v3_plus_7b.jsonl \
-  --output_dir ./output_1.7b_cpo_v3_plus_7b --lr 1e-4 --beta 0.05 --nll_weight 1.0 \
+$PY -u train/train_cpo.py --model_path ./checkpoints/output_1.7b_base_v2 --data_path ./data/cpo_v3_plus_7b.jsonl \
+  --output_dir ./checkpoints/output_1.7b_cpo_v3_plus_7b --lr 1e-4 --beta 0.05 --nll_weight 1.0 \
   --batch_size 1 --gradient_accumulation_steps 16 --max_length 512
 
 # Merge a LoRA adapter into its base before eval/GRPO
-$PY -u merge_lora_qwen3.py --base_model_path ./output_1.7b_base_v2 \
-  --adapter_model_path ./output_1.7b_cpo_v3_plus_7b \
-  --output_path ./output_1.7b_cpo_v3_plus_7b_merged --save_dtype bf16
+$PY -u train/merge_lora_qwen3.py --base_model_path ./checkpoints/output_1.7b_base_v2 \
+  --adapter_model_path ./checkpoints/output_1.7b_cpo_v3_plus_7b \
+  --output_path ./checkpoints/output_1.7b_cpo_v3_plus_7b_merged --save_dtype bf16
 
 # GRPO: full-param RL with COMET reward (TRL GRPOTrainer + colocated vLLM)
-$PY -u train_grpo.py --model_path ./output_1.7b_cpo_v3_plus_7b_merged \
-  --data_path ./grpo_data.jsonl --output_dir ./output_1.7b_grpo_full --full_finetune
+$PY -u train/train_grpo.py --model_path ./checkpoints/output_1.7b_cpo_v3_plus_7b_merged \
+  --data_path ./data/grpo_data.jsonl --output_dir ./checkpoints/output_1.7b_grpo_full --full_finetune
 
 # Eval: fast vLLM eval on one test set (BLEU + COMET)
-$PY -u eval_vllm.py --model_path ./output_xxx --testset wmt23 --direction both
+$PY -u eval/eval_vllm.py --model_path ./checkpoints/output_xxx --testset wmt23 --direction both
 
 # Eval: multi-testset (WMT23/24 + Flores) to catch COMET reward-hacking
-$PY -u eval_multi.py --model_path ./output_xxx
+$PY -u eval/eval_multi.py --model_path ./checkpoints/output_xxx
 ```
 
 `run_experiments.sh` holds shell functions for past experiment runs — useful as

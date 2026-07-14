@@ -58,27 +58,16 @@ private/
 # PDF
 *.pdf
 
-# Large model outputs
-Qwen/output_*/
-Qwen/*.jsonl
-Qwen/*.json
-Qwen/xalma_5cand.jsonl
-Qwen/cpo_*.jsonl
-Qwen/alma_*.jsonl
-Qwen/sft_*.jsonl
+# Qwen: all data / models / checkpoints / logs live under these dirs (code-only is tracked)
+Qwen/data/
+Qwen/logs/
+Qwen/checkpoints/
+Qwen/datasets/
+
+# Large model outputs (global)
 private/
 *.pt
 *.safetensors
-
-# Qwen: training logs, datasets, external repos, model weights
-Qwen/logs_*.txt
-Qwen/flores200_dataset/
-Qwen/metricx_repo/
-Qwen/models/
-Qwen/Qwen3-0.6B/
-Qwen/Qwen3-0.6B-Base/
-Qwen/Qwen3-1.7B/
-Qwen/Qwen3-1.7B-Base/
 
 # sherry_qat: quant artifacts (models, GGUF, KD data, logs) -- code only is tracked
 Qwen/sherry_qat/output_*/

@@ -4,7 +4,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 from quant import Arenas, set_arenas_eps
 from quantize import quantize_qwen3, quant_stats
 
-MODEL = "/home/tfbao/Shiyu/Interpreter/Qwen/output_1.7b_grpo_full"
+MODEL = "/home/tfbao/Shiyu/Interpreter/Qwen/checkpoints/output_1.7b_grpo_full"
 dev = "cuda"
 
 print("loading FP model ...", flush=True)

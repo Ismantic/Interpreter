@@ -1,7 +1,11 @@
 # 数据清单 — Qwen3-1.7B 中英翻译模型项目（完整记录）
 
 目录：`/home/tfbao/Shiyu/Interpreter/Qwen/`
-最佳模型：`output_1.7b_grpo_full`（SFT→CPO→GRPO，WMT23 0.8054/0.8542）
+最佳模型：`checkpoints/output_1.7b_grpo_full`（SFT→CPO→GRPO，WMT23 0.8054/0.8542）
+
+> 目录重排后：下表中所有 `*.jsonl`/`*.json` 现位于 **`data/`**，checkpoint 位于
+> **`checkpoints/`**,数据集(ALMA/X-ALMA/flores/Qwen3-*)位于 **`datasets/`**。
+> 大量早期/弃用数据与 checkpoint 已按 results.tsv 判定清理,仅保留采用/基底/参考项。
 
 ---
 

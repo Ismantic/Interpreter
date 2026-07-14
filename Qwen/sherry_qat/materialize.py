@@ -9,7 +9,7 @@ same as the 1.25-bit fake-quant model, but runs at full vLLM speed.
 
 After training:
     python materialize.py --in ./output_qat_125bit --out ./output_qat_125bit_mat
-    python ../eval_vllm.py --model_path ./output_qat_125bit_mat \
+    python ../eval/eval_vllm.py --model_path ./output_qat_125bit_mat \
         --testset wmt23 --direction both
 """
 import argparse, torch
@@ -39,7 +39,7 @@ def materialize(in_path, out_path, group_size=128, N=3, M=4):
     model.save_pretrained(out_path)
     tok.save_pretrained(out_path)
     print(f"saved plain Qwen3 (1.25-bit weights baked in) -> {out_path}\n"
-          f"eval fast with: python ../eval_vllm.py --model_path {out_path} "
+          f"eval fast with: python ../eval/eval_vllm.py --model_path {out_path} "
           f"--testset wmt23 --direction both", flush=True)
 
 

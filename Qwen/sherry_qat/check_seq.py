@@ -4,7 +4,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 from quantize import quantize_qwen3, quant_stats
 from quant import set_arenas_eps
 
-M = "/home/tfbao/Shiyu/Interpreter/Qwen/output_1.7b_grpo_full"
+M = "/home/tfbao/Shiyu/Interpreter/Qwen/checkpoints/output_1.7b_grpo_full"
 KD = "/home/tfbao/Shiyu/Interpreter/Qwen/sherry_qat/qat_kd_10pct.jsonl"
 dev = "cuda"
 
