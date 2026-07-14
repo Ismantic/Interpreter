@@ -22,9 +22,16 @@ PieceTokenizer。核心问题:**换了 tokenizer 的底座,走完整流水线后
 
 ### 关键结论
 
-- **piece tokenizer 的差距随流水线推进而收窄。** 相对 Qwen 基线的 en→zh COMET 差:
-  SFT **−0.016** → CPO **−0.003** → GRPO **−0.003**;zh→en COMET 差:−0.016 → −0.008 → −0.004。
-  **换 tokenizer 在 SFT 阶段的损失最大,CPO/GRPO 把大部分差距补了回来。**
+- **piece tokenizer 的差距随流水线推进而收窄**(相对 Qwen 基线的 COMET 差,**两向都看**):
+
+  | 阶段 | zh→en COMET Δ | en→zh COMET Δ |
+  |---|---|---|
+  | SFT  | −0.0162 | −0.0164 |
+  | CPO  | −0.0076 | −0.0027 |
+  | GRPO | **−0.0036** | **−0.0029** |
+
+  两个方向一致:**换 tokenizer 在 SFT 阶段损失最大(约 −0.016),CPO/GRPO 把大部分差距补回,
+  到 GRPO 时两向都收窄到 −0.003 ~ −0.004。**
 - **GRPO 相对自身 base 5-shot:两向 COMET 各 +0.013**(0.7834→0.7967、0.8377→0.8511)——
   流水线把 piece 底座显著抬到 few-shot 之上。
 - **2nd-round GRPO(`_r2`)和双奖励 kiwi(`_grpo_kiwi`)= 噪声内**(≤+0.0006 COMET),
