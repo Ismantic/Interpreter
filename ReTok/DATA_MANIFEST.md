@@ -12,7 +12,7 @@ PieceTokenizer。核心问题:**换了 tokenizer 的底座,走完整流水线后
 
 | 阶段 | 模型 | zh→en BLEU/COMET | en→zh BLEU/COMET |
 |---|---|---|---|
-| base 5-shot | `models/phase2_ckpt_v18_tie` | 19.60 / 0.7834 | 40.99 / 0.8377 |
+| base 5-shot (in-repo) | `models/phase2_ckpt_v18_tie` | 17.44 / 0.7582 | 38.10 / 0.8255 |
 | **SFT** | `checkpoints/output_v18_tie_sft` | 19.34 / 0.7762 | 40.09 / 0.8392 |
 | **CPO** | `..._cpo_v3_plus_7b_merged` | 18.11 / 0.7941 | 31.38 / 0.8480 |
 | **GRPO** ★ | `..._grpo_full` | 18.43 / **0.7967** | 31.79 / **0.8511** |
@@ -46,8 +46,11 @@ PieceTokenizer。核心问题:**换了 tokenizer 的底座,走完整流水线后
   - **GRPO 那行的大差距是路径差、非 tokenizer 差**:Qwen 基线取的是 **SFT→GRPO 的高 BLEU 变体
     (`grpo_sft_tuned` 22.85/41.97)**,而 ReTok grpo 走 SFT→CPO→GRPO(CPO 已把 en→zh BLEU 砸到 ~31)。
     要纯比 tokenizer,看 **CPO 行**;COMET 因为 CPO/GRPO 路径下都接近,故上表的收窄结论仍成立。
-- **GRPO 相对自身 base 5-shot:两向 COMET 各 +0.013**(0.7834→0.7967、0.8377→0.8511)——
-  流水线把 piece 底座显著抬到 few-shot 之上。
+- **GRPO 相对自身 base 5-shot:zh→en COMET +0.0385、en→zh +0.0256**
+  (0.7582→0.7967、0.8255→0.8511)——流水线把 piece 底座显著抬到 few-shot 之上。
+  > base 5-shot 用 **`eval/eval_base_fewshot_piece.py`** 在 ReTok 内跑得(WMT21 demos,纯补全,可复现)。
+  > `results.tsv` 另有一行 `base_v18tie_5shot`(0.7834/0.8377)是 **Summer 侧测的**上限参考,
+  > few-shot 设置不同、比这里高 ~0.02–0.025 COMET;做 in-repo 对比时用可复现的这行。
 - **2nd-round GRPO(`_r2`)和双奖励 kiwi(`_grpo_kiwi`)= 噪声内**(≤+0.0006 COMET),
   已删;三者视为同一档,`grpo_full` 是存活代表。
 - BLEU 的 en→zh 在 CPO 大跌(40→31),与 Qwen 同款 COMET/BLEU 背离,非 piece 独有。

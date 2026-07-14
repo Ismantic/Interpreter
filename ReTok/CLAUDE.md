@@ -25,7 +25,7 @@ Code and artifacts are separated (mirrors `../Qwen/`). **Run every command from 
 ```
 ReTok/
 ├── train/       train.py  train_cpo.py  train_grpo.py  train_grpo_kiwi.py  merge_lora.py
-├── eval/        eval_vllm_piece.py
+├── eval/        eval_vllm_piece.py  eval_base_fewshot_piece.py
 ├── lib/         tokenizer_wrapper.py  piece_hf_tokenizer.py  tok_artifacts.py
 │                (shared piece-tokenizer modules; train/eval add ReTok/lib to sys.path)
 ├── data/        *.jsonl SFT/CPO/GRPO data (own copy, decoupled from Qwen)   (git-ignored)
