@@ -59,44 +59,45 @@ private/
 *.pdf
 
 # Large model outputs
-Translator/output_*/
-Translator/*.jsonl
-Translator/*.json
-Translator/xalma_5cand.jsonl
-Translator/cpo_*.jsonl
-Translator/alma_*.jsonl
-Translator/sft_*.jsonl
+Qwen/output_*/
+Qwen/*.jsonl
+Qwen/*.json
+Qwen/xalma_5cand.jsonl
+Qwen/cpo_*.jsonl
+Qwen/alma_*.jsonl
+Qwen/sft_*.jsonl
 private/
 *.pt
 *.safetensors
 
-# Translator: training logs, datasets, external repos, model weights
-Translator/logs_*.txt
-Translator/flores200_dataset/
-Translator/metricx_repo/
-Translator/models/
-Translator/Qwen3-0.6B/
-Translator/Qwen3-0.6B-Base/
-Translator/Qwen3-1.7B/
-Translator/Qwen3-1.7B-Base/
+# Qwen: training logs, datasets, external repos, model weights
+Qwen/logs_*.txt
+Qwen/flores200_dataset/
+Qwen/metricx_repo/
+Qwen/models/
+Qwen/Qwen3-0.6B/
+Qwen/Qwen3-0.6B-Base/
+Qwen/Qwen3-1.7B/
+Qwen/Qwen3-1.7B-Base/
 
 # sherry_qat: quant artifacts (models, GGUF, KD data, logs) -- code only is tracked
-Translator/sherry_qat/output_*/
-Translator/sherry_qat/gguf/
-Translator/sherry_qat/__pycache__/
-Translator/sherry_qat/smoke_*/
-Translator/sherry_qat/*.jsonl
-Translator/sherry_qat/*.json
-Translator/sherry_qat/*.dat
-Translator/sherry_qat/calib*.txt
-Translator/sherry_qat/logs_*.txt
+Qwen/sherry_qat/output_*/
+Qwen/sherry_qat/gguf/
+Qwen/sherry_qat/__pycache__/
+Qwen/sherry_qat/smoke_*/
+Qwen/sherry_qat/*.jsonl
+Qwen/sherry_qat/*.json
+Qwen/sherry_qat/*.dat
+Qwen/sherry_qat/calib*.txt
+Qwen/sherry_qat/logs_*.txt
 
-# Translator_piece: training/eval outputs, logs, papers — code only is tracked
-Translator_piece/output_*/
-Translator_piece/eval_*.log
-Translator_piece/*_run.log
-Translator_piece/chain_*.log
-Translator_piece/kiwi_chain.log
-Translator_piece/papers/
-Translator_piece/__pycache__/
-Translator_piece/smoke_logs/
+# ReTok: training/eval outputs, logs, papers, copied training data — code only is tracked
+ReTok/data/
+ReTok/output_*/
+ReTok/eval_*.log
+ReTok/*_run.log
+ReTok/chain_*.log
+ReTok/kiwi_chain.log
+ReTok/papers/
+ReTok/__pycache__/
+ReTok/smoke_logs/
