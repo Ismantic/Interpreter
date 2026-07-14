@@ -32,6 +32,20 @@ PieceTokenizer。核心问题:**换了 tokenizer 的底座,走完整流水线后
 
   两个方向一致:**换 tokenizer 在 SFT 阶段损失最大(约 −0.016),CPO/GRPO 把大部分差距补回,
   到 GRPO 时两向都收窄到 −0.003 ~ −0.004。**
+
+- **BLEU 上差距不同步收窄**(相对 Qwen 基线的 BLEU 差):
+
+  | 阶段 | zh→en BLEU Δ | en→zh BLEU Δ |
+  |---|---|---|
+  | SFT  | −2.24 | **+0.27** |
+  | CPO  | −1.05 | −1.31 |
+  | GRPO | −4.42 | −10.18 |
+
+  - SFT 阶段 piece 的 en→zh BLEU 反而**略超** Qwen(+0.27)。
+  - CPO 阶段是最干净的同路径对比(两边都 SFT→CPO),tokenizer 效应约 zh→en −1.05 / en→zh −1.31。
+  - **GRPO 那行的大差距是路径差、非 tokenizer 差**:Qwen 基线取的是 **SFT→GRPO 的高 BLEU 变体
+    (`grpo_sft_tuned` 22.85/41.97)**,而 ReTok grpo 走 SFT→CPO→GRPO(CPO 已把 en→zh BLEU 砸到 ~31)。
+    要纯比 tokenizer,看 **CPO 行**;COMET 因为 CPO/GRPO 路径下都接近,故上表的收窄结论仍成立。
 - **GRPO 相对自身 base 5-shot:两向 COMET 各 +0.013**(0.7834→0.7967、0.8377→0.8511)——
   流水线把 piece 底座显著抬到 few-shot 之上。
 - **2nd-round GRPO(`_r2`)和双奖励 kiwi(`_grpo_kiwi`)= 噪声内**(≤+0.0006 COMET),
