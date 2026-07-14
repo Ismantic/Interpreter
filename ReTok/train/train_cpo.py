@@ -32,10 +32,9 @@ from transformers import AutoModelForCausalLM
 from peft import LoraConfig, get_peft_model
 
 # Reuse ReTok/train.py helpers (tokenizer wrapper + 5-file copy)
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "lib"))
 from tokenizer_wrapper import PieceTokenizerWrapper  # noqa: E402
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from train import _copy_tokenizer_artifacts  # noqa: E402
+from tok_artifacts import _copy_tokenizer_artifacts  # noqa: E402
 
 IGNORE_INDEX = -100
 

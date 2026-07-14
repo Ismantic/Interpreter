@@ -7,13 +7,13 @@ PY=/home/tfbao/new/HY-MT/.venv/bin/python
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DATA="$HERE/data/grpo_data.jsonl"
 
-MODEL="$HERE/output_v18_tie_cpo_v3_plus_7b_merged"
-OUT="$HERE/output_v18_tie_grpo_kiwi"
+MODEL="$HERE/checkpoints/output_v18_tie_cpo_v3_plus_7b_merged"
+OUT="$HERE/checkpoints/output_v18_tie_grpo_kiwi"
 
 mkdir -p "$OUT"
 cd "$HERE"
 
-$PY -u train_grpo_kiwi.py \
+$PY -u train/train_grpo_kiwi.py \
     --model_path "$MODEL" \
     --data_path "$DATA" \
     --output_dir "$OUT" \

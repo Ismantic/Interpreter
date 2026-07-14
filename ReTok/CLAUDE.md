@@ -7,7 +7,7 @@ only two differences:
 
 | | Qwen baseline | ReTok |
 |---|---|---|
-| Base model | `Qwen3-1.7B-Base` | `/home/tfbao/Shiyu/Summer/output/phase2_ckpt_v18` (ReTok phase2 v18) |
+| Base model | `Qwen3-1.7B-Base` | `models/phase2_ckpt_v18_tie` (ReTok phase2 v18, copied in from Summer) |
 | Tokenizer | Qwen3 HF BPE (ChatML) | PieceTokenizer (`<bos><user>…<assistant>…<eos>`) |
 
 Same data (`alma_combined_sft_clean.jsonl` for SFT, `cpo_v3_plus_7b.jsonl` for
@@ -16,6 +16,30 @@ reward functions, same prompt template
 (`Translate the following text from X to Y.\n{src lang}: {src}\n{tgt lang}:`).
 
 Pipeline mirrors Qwen: **SFT → CPO (LoRA) → GRPO (full-param)**.
+
+## Directory layout
+
+Code and artifacts are separated (mirrors `../Qwen/`). **Run every command from this
+`ReTok/` root** — scripts, defaults, and the commands below are relative to it.
+
+```
+ReTok/
+├── train/       train.py  train_cpo.py  train_grpo.py  train_grpo_kiwi.py  merge_lora.py
+├── eval/        eval_vllm_piece.py
+├── lib/         tokenizer_wrapper.py  piece_hf_tokenizer.py  tok_artifacts.py
+│                (shared piece-tokenizer modules; train/eval add ReTok/lib to sys.path)
+├── data/        *.jsonl SFT/CPO/GRPO data (own copy, decoupled from Qwen)   (git-ignored)
+├── models/      phase2_ckpt_v18_tie  (the piece base checkpoint)            (git-ignored)
+├── checkpoints/ output_v18_tie_*  model checkpoints                         (git-ignored)
+├── logs/        *.log run/eval logs                                         (git-ignored)
+├── papers/                                                                  (git-ignored)
+├── run_sft.sh  run_cpo.sh  run_grpo.sh  run_grpo_r2.sh  run_grpo_kiwi.sh  run_kiwi_chain.sh  run_all_tie.sh
+└── CLAUDE.md  RUN_BEST_MODEL.md  results.tsv
+```
+
+ReTok is self-contained: `tokenizer_wrapper.py` is its own copy (no longer imported
+from `../HYMT/`), and the base checkpoint lives in `models/`. Only the C++
+`piece_tokenizer` extension (in the venv) is an external dependency.
 
 ## Setup
 
@@ -31,8 +55,7 @@ Pipeline mirrors Qwen: **SFT → CPO (LoRA) → GRPO (full-param)**.
 ## Common commands
 
 ```bash
-PY=/home/tfbao/new/HY-MT/.venv/bin/python
-BASE=/home/tfbao/Shiyu/Summer/output/phase2_ckpt_v18
+PY=/home/tfbao/new/HY-MT/.venv/bin/python   # run all bash/eval commands from the ReTok/ root
 
 # === Phase 1: SFT ===
 bash run_sft.sh smoke         # 50-step sanity
@@ -48,9 +71,9 @@ bash run_grpo.sh from_sft     # from SFT directly → output_v18_grpo_from_sft/
                               #   (matches Qwen/output_1.7b_grpo_sft_tuned lineage)
 
 # === Eval (any checkpoint) ===
-$PY -u eval_vllm_piece.py --model_path ./output_v18_sft --testset wmt23 --direction both
-$PY -u eval_vllm_piece.py --model_path ./output_v18_cpo_v3_plus_7b_merged --testset wmt24 --direction both
-$PY -u eval_vllm_piece.py --model_path ./output_v18_grpo_full --testset wmt23 --direction both --no_comet
+$PY -u eval/eval_vllm_piece.py --model_path ./checkpoints/output_v18_tie_sft --testset wmt23 --direction both
+$PY -u eval/eval_vllm_piece.py --model_path ./checkpoints/output_v18_tie_cpo_v3_plus_7b_merged --testset wmt24 --direction both
+$PY -u eval/eval_vllm_piece.py --model_path ./checkpoints/output_v18_tie_grpo_full --testset wmt23 --direction both --no_comet
 ```
 
 ## Architecture
@@ -88,8 +111,9 @@ $PY -u eval_vllm_piece.py --model_path ./output_v18_grpo_full --testset wmt23 --
 Every checkpoint dir is **self-contained**: `model.safetensors` + 5 piece
 files (`piece.model`, `dict.txt`, `token_mapping.json`,
 `special_tokens_map.json`, `tokenizer_config.json`). The helper
-`train._copy_tokenizer_artifacts(base_dir, save_dir)` is the single source of
-truth — used by SFT/CPO save loops, merge_lora, and the final GRPO save.
+`tok_artifacts._copy_tokenizer_artifacts(base_dir, save_dir)` (in `lib/`, imported by
+every module) is the single source of truth — used by SFT/CPO save loops, merge_lora,
+and the final GRPO save.
 
 ## Comparison targets (from Qwen/results.tsv)
 
@@ -103,8 +127,8 @@ Append results to `results.tsv` after each phase.
 
 ## BEST ReTok checkpoint
 
-**`output_v18_tie_grpo_full/`** — the only ReTok GRPO checkpoint that survives
-on disk and the canonical "best" for deployment.
+**`checkpoints/output_v18_tie_grpo_full/`** — the only ReTok GRPO checkpoint that
+survives on disk and the canonical "best" for deployment.
 
 WMT23: zh→en 18.43 / 0.7967, en→zh 31.79 / 0.8511.
 

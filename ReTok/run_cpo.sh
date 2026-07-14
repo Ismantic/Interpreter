@@ -6,10 +6,10 @@ set -euo pipefail
 
 PY=/home/tfbao/new/HY-MT/.venv/bin/python
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SFT_BASE="$HERE/output_v18_tie_sft"
+SFT_BASE="$HERE/checkpoints/output_v18_tie_sft"
 DATA="$HERE/data/cpo_v3_plus_7b.jsonl"
-OUT="$HERE/output_v18_tie_cpo_v3_plus_7b"
-MERGED="$HERE/output_v18_tie_cpo_v3_plus_7b_merged"
+OUT="$HERE/checkpoints/output_v18_tie_cpo_v3_plus_7b"
+MERGED="$HERE/checkpoints/output_v18_tie_cpo_v3_plus_7b_merged"
 
 mkdir -p "$OUT"
 cd "$HERE"
@@ -19,7 +19,7 @@ cd "$HERE"
 # gradient_checkpointing because LoRA (~17M trainable) needs <6G memory at bs=4,
 # and the original config underutilizes 4090 (~36% GPU, 5G/24G mem).
 # Effective batch is unchanged, so the optimizer trajectory is loss-equivalent.
-$PY -u train_cpo.py \
+$PY -u train/train_cpo.py \
     --model_path "$SFT_BASE" \
     --data_path "$DATA" \
     --output_dir "$OUT" \
@@ -34,7 +34,7 @@ $PY -u train_cpo.py \
     2>&1 | tee "$OUT/train.log"
 
 # Merge LoRA into base for eval / downstream GRPO
-$PY -u merge_lora.py \
+$PY -u train/merge_lora.py \
     --base_model_path "$SFT_BASE" \
     --adapter_model_path "$OUT" \
     --output_path "$MERGED" \

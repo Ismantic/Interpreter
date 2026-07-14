@@ -4,7 +4,7 @@
 
 ## 模型
 
-- **路径**：`ReTok/output_v18_tie_grpo_full/`（约 3.0 GB）
+- **路径**：`ReTok/checkpoints/output_v18_tie_grpo_full/`（约 3.0 GB）
 - **架构**：Qwen3ForCausalLM（1.7B，hidden=2048，bf16），自定义 PieceTokenizer（vocab=81903）
 - **训练流水线**：SFT → CPO (LoRA, merged) → GRPO (full-param)，base 来自 `/home/tfbao/Shiyu/Summer/output/phase2_ckpt_v18`
 - **WMT23 成绩**：zh→en 18.43 / COMET 0.7967；en→zh 31.79 / COMET 0.8511
@@ -17,9 +17,9 @@
 
 | ReTok GRPO 变体 | WMT23 zh→en (BLEU/COMET) | WMT23 en→zh | 磁盘 |
 |---|---|---|---|
-| **`output_v18_tie_grpo_full`** | 18.43 / 0.7967 | 31.79 / 0.8511 | ✅ 存在 |
-| `output_v18_tie_grpo_full_r2` (R1 接着再跑一轮 GRPO) | 18.59 / 0.7973 | 31.84 / 0.8514 | ❌ 已删 |
-| `output_v18_tie_grpo_kiwi` (COMET + cometkiwi 双奖励) | 18.25 / 0.7972 | 31.60 / 0.8516 | ❌ 已删 |
+| **`checkpoints/output_v18_tie_grpo_full`** | 18.43 / 0.7967 | 31.79 / 0.8511 | ✅ 存在 |
+| `checkpoints/output_v18_tie_grpo_full_r2` (R1 接着再跑一轮 GRPO) | 18.59 / 0.7973 | 31.84 / 0.8514 | ❌ 已删 |
+| `checkpoints/output_v18_tie_grpo_kiwi` (COMET + cometkiwi 双奖励) | 18.25 / 0.7972 | 31.60 / 0.8516 | ❌ 已删 |
 
 R2 / kiwi 相对 grpo_full 的提升只在 **±0.0003~0.0006 COMET** 量级，处于评测噪声范围内——三者实质同一档。**磁盘上唯一存活的就是 `grpo_full`，因此它就是 ReTok 项目的 BEST。**
 
@@ -74,12 +74,12 @@ PROMPT_EN2ZH = "Translate the following text from English to Chinese.\nEnglish: 
 |------|------|
 | `/home/tfbao/new/HY-MT/.venv/` | venv（torch / transformers / vllm / sacrebleu / unbabel-comet） |
 | `piece_tokenizer`（C++ 扩展，装在 venv 里） | PieceTokenizer 编解码；源码在 `/home/tfbao/Shiyu/PieceTokenizer/` |
-| `Interpreter/tokenizer_wrapper.py` | `PieceTokenizerWrapper` —— HF 风格的薄封装 |
-| `ReTok/eval_vllm_piece.py` | WMT 评测脚本（vLLM） |
+| `ReTok/lib/tokenizer_wrapper.py` | `PieceTokenizerWrapper` —— HF 风格的薄封装 |
+| `ReTok/eval/eval_vllm_piece.py` | WMT 评测脚本（vLLM） |
 
 新机器路径若不是 `/home/tfbao/...`，需要修改：
 - 各 `run_*.sh` 顶部的 `PY=`
-- `eval_vllm_piece.py` 里的 `COMET_CKPT` 路径（默认 `~/.cache/comet/...`，相对 home 一般不用动）
+- `eval/eval_vllm_piece.py` 里的 `COMET_CKPT` 路径（默认 `~/.cache/comet/...`，相对 home 一般不用动）
 
 ## 三级启动验证
 
@@ -94,10 +94,10 @@ PROMPT_EN2ZH = "Translate the following text from English to Chinese.\nEnglish: 
 ### Level 2 — Tokenizer 编解码
 
 ```bash
-cd /home/tfbao/Shiyu/Interpreter
-/home/tfbao/new/HY-MT/.venv/bin/python -c "
+cd /home/tfbao/Shiyu/Interpreter/ReTok
+PYTHONPATH=lib /home/tfbao/new/HY-MT/.venv/bin/python -c "
 from tokenizer_wrapper import PieceTokenizerWrapper
-t = PieceTokenizerWrapper('ReTok/output_v18_tie_grpo_full')
+t = PieceTokenizerWrapper('checkpoints/output_v18_tie_grpo_full')
 print('vocab:', t.vocab_size, 'bos/eos/pad:', t.bos_token_id, t.eos_token_id, t.pad_token_id)
 ids = t.apply_chat_template([{'role':'user','content':'Hello world'}], add_generation_prompt=True)
 print('chat ids:', ids[:20])
@@ -114,12 +114,12 @@ print('decode:', t.decode(ids))
 ```python
 """Minimal greedy inference for the ReTok GRPO model — no vLLM, just transformers."""
 import sys, os
-sys.path.insert(0, "/home/tfbao/Shiyu/Interpreter")
+sys.path.insert(0, "/home/tfbao/Shiyu/Interpreter/ReTok/lib")
 import torch
 from transformers import AutoModelForCausalLM
 from tokenizer_wrapper import PieceTokenizerWrapper
 
-MODEL_DIR = "/home/tfbao/Shiyu/Interpreter/ReTok/output_v18_tie_grpo_full"
+MODEL_DIR = "/home/tfbao/Shiyu/Interpreter/ReTok/checkpoints/output_v18_tie_grpo_full"
 
 PROMPT_ZH2EN = "Translate the following text from Chinese to English.\nChinese: {src}\nEnglish:"
 PROMPT_EN2ZH = "Translate the following text from English to Chinese.\nEnglish: {src}\nChinese:"
@@ -165,35 +165,35 @@ cd /home/tfbao/Shiyu/Interpreter/ReTok
 
 ## 完整 WMT 评测（vLLM）
 
-仓库自带的 `eval_vllm_piece.py` 已经对接好 sacrebleu BLEU + Unbabel COMET。
+仓库自带的 `eval/eval_vllm_piece.py` 已经对接好 sacrebleu BLEU + Unbabel COMET。
 
 ```bash
 cd /home/tfbao/Shiyu/Interpreter/ReTok
 PY=/home/tfbao/new/HY-MT/.venv/bin/python
 
 # 完整 WMT23 双向 + BLEU + COMET
-$PY -u eval_vllm_piece.py \
-    --model_path ./output_v18_tie_grpo_full \
+$PY -u eval/eval_vllm_piece.py \
+    --model_path ./checkpoints/output_v18_tie_grpo_full \
     --testset wmt23 \
     --direction both
 
 # 跳过 COMET（COMET ckpt 未下载时）
-$PY -u eval_vllm_piece.py \
-    --model_path ./output_v18_tie_grpo_full \
+$PY -u eval/eval_vllm_piece.py \
+    --model_path ./checkpoints/output_v18_tie_grpo_full \
     --testset wmt23 \
     --direction both \
     --no_comet
 
 # 单向
-$PY -u eval_vllm_piece.py \
-    --model_path ./output_v18_tie_grpo_full \
+$PY -u eval/eval_vllm_piece.py \
+    --model_path ./checkpoints/output_v18_tie_grpo_full \
     --testset wmt24 \
     --direction zh-en
 ```
 
 ### COMET checkpoint
 
-`eval_vllm_piece.py` 写死从本地缓存读：
+`eval/eval_vllm_piece.py` 写死从本地缓存读：
 `~/.cache/comet/models--Unbabel--wmt22-comet-da/snapshots/.../checkpoints/model.ckpt`
 
 若新机器没有，跑一次 `from comet import download_model; download_model("Unbabel/wmt22-comet-da")`，或加 `--no_comet` 跳过。
@@ -204,16 +204,16 @@ $PY -u eval_vllm_piece.py \
 |------|------------|
 | `ImportError: piece_tokenizer` | venv 没装好。`cd /home/tfbao/Shiyu/PieceTokenizer && pip install -e .` |
 | `No piece model found in ...` | model_path 写错了，或者 `piece.model` 没拷过来 |
-| vLLM 报 tokenizer 相关错误 | 确认 `LLM(..., skip_tokenizer_init=True)`（`eval_vllm_piece.py` 已正确设置） |
+| vLLM 报 tokenizer 相关错误 | 确认 `LLM(..., skip_tokenizer_init=True)`（`eval/eval_vllm_piece.py` 已正确设置） |
 | 输出乱码 / 一直停不下来 | `eos_token_id=2` 没传；prompt 模板和训练不一致；或 `apply_chat_template(..., add_generation_prompt=True)` 漏了 |
 | COMET ckpt 找不到 | 用 `--no_comet`，或下载到 `~/.cache/comet/...` |
 
 ## 顺手记录：其它 checkpoint
 
-`output_v18_tie_grpo_full` 是流水线终点。中间产物也都在 `ReTok/`：
+`checkpoints/output_v18_tie_grpo_full` 是流水线终点。中间产物也都在 `ReTok/`：
 
-- `output_v18_tie_sft/` —— Phase 1 SFT，3.0 GB
-- `output_v18_tie_cpo_v3_plus_7b/` —— Phase 2 CPO 的 LoRA adapter，74 MB
-- `output_v18_tie_cpo_v3_plus_7b_merged/` —— LoRA 合并版，3.0 GB（GRPO 的起点）
+- `checkpoints/output_v18_tie_sft/` —— Phase 1 SFT，3.0 GB
+- `checkpoints/output_v18_tie_cpo_v3_plus_7b/` —— Phase 2 CPO 的 LoRA adapter，74 MB
+- `checkpoints/output_v18_tie_cpo_v3_plus_7b_merged/` —— LoRA 合并版，3.0 GB（GRPO 的起点）
 
-如果只想跑最强模型，**只需要保留** `output_v18_tie_grpo_full/`，其它都可以删。
+如果只想跑最强模型，**只需要保留** `checkpoints/output_v18_tie_grpo_full/`，其它都可以删。

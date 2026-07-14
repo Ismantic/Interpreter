@@ -15,17 +15,17 @@ DATA="$HERE/data/grpo_data.jsonl"
 
 START="${1:-cpo}"
 if [ "$START" = "from_sft" ]; then
-    MODEL="$HERE/output_v18_tie_sft"
-    OUT="$HERE/output_v18_tie_grpo_from_sft"
+    MODEL="$HERE/checkpoints/output_v18_tie_sft"
+    OUT="$HERE/checkpoints/output_v18_tie_grpo_from_sft"
 else
-    MODEL="$HERE/output_v18_tie_cpo_v3_plus_7b_merged"
-    OUT="$HERE/output_v18_tie_grpo_full"
+    MODEL="$HERE/checkpoints/output_v18_tie_cpo_v3_plus_7b_merged"
+    OUT="$HERE/checkpoints/output_v18_tie_grpo_full"
 fi
 
 mkdir -p "$OUT"
 cd "$HERE"
 
-$PY -u train_grpo.py \
+$PY -u train/train_grpo.py \
     --model_path "$MODEL" \
     --data_path "$DATA" \
     --output_dir "$OUT" \

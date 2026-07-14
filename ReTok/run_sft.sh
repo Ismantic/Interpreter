@@ -15,15 +15,15 @@ set -euo pipefail
 
 PY=/home/tfbao/new/HY-MT/.venv/bin/python
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-BASE=/home/tfbao/Shiyu/Summer/output/phase2_ckpt_v18_tie
+BASE="$HERE/models/phase2_ckpt_v18_tie"
 DATA="$HERE/data/alma_combined_sft_clean.jsonl"
 
 MODE="${1:-full}"
 if [ "$MODE" = "smoke" ]; then
-    OUT="$HERE/output_smoke"
+    OUT="$HERE/checkpoints/output_smoke"
     EXTRA="--max_steps 50 --warmup_steps 5 --save_steps 0 --logging_steps 5"
 else
-    OUT="$HERE/output_v18_tie_sft"
+    OUT="$HERE/checkpoints/output_v18_tie_sft"
     # Qwen baseline used: --num_epochs 1, save every 1000 by default,
     # logging every 10. Match those.
     EXTRA="--num_epochs 1 --save_steps 1000 --logging_steps 10"
@@ -32,7 +32,7 @@ fi
 mkdir -p "$OUT"
 cd "$HERE"
 
-exec $PY -u train.py \
+exec $PY -u train/train.py \
     --model_path "$BASE" \
     --train_data "$DATA" \
     --output_dir "$OUT" \

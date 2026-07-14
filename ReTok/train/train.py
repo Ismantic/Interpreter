@@ -33,32 +33,12 @@ import torch
 from torch.utils.data import Dataset, DataLoader
 from transformers import AutoModelForCausalLM
 
-# Pull PieceTokenizerWrapper from the parent Interpreter repo (sibling to this dir)
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Shared piece-tokenizer modules live in ReTok/lib
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "lib"))
 from tokenizer_wrapper import PieceTokenizerWrapper  # noqa: E402
+from tok_artifacts import _copy_tokenizer_artifacts  # noqa: E402
 
 IGNORE_INDEX = -100
-
-_TOKENIZER_ARTIFACTS = [
-    "piece.model",
-    "dict.txt",
-    "token_mapping.json",
-    "special_tokens_map.json",
-    "tokenizer_config.json",
-]
-
-
-def _copy_tokenizer_artifacts(base_dir, save_dir):
-    """Mirror PieceTokenizer's 5 files from the original base dir into a save dir.
-    Qwen's HF-tokenizer path used tokenizer.save_pretrained(); piece has no
-    such hook, so each ckpt must be self-contained the same way Summer/Interpreter
-    write theirs.
-    """
-    os.makedirs(save_dir, exist_ok=True)
-    for fn in _TOKENIZER_ARTIFACTS:
-        src = os.path.join(base_dir, fn)
-        if os.path.exists(src):
-            shutil.copy2(src, os.path.join(save_dir, fn))
 
 
 class TranslationSFTDataset(Dataset):

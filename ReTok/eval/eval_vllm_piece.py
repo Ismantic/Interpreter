@@ -23,8 +23,8 @@ import argparse
 import time
 import sacrebleu
 
-# wrapper lives in the parent Interpreter repo
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Shared piece-tokenizer modules live in ReTok/lib
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "lib"))
 from tokenizer_wrapper import PieceTokenizerWrapper  # noqa: E402
 
 # These templates are character-identical to Qwen/eval_vllm.py

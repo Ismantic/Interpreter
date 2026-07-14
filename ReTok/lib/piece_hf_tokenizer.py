@@ -19,13 +19,10 @@ from typing import List, Union, Dict, Any
 from transformers import PreTrainedTokenizer
 from transformers.tokenization_utils_base import BatchEncoding
 
-# wrapper from sibling Interpreter repo
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from tokenizer_wrapper import PieceTokenizerWrapper  # noqa: E402
-
-# Same 5-file list used by train.py / merge_lora.py
+# Shared piece-tokenizer modules are co-located here in ReTok/lib
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from train import _copy_tokenizer_artifacts, _TOKENIZER_ARTIFACTS  # noqa: E402
+from tokenizer_wrapper import PieceTokenizerWrapper  # noqa: E402
+from tok_artifacts import _copy_tokenizer_artifacts, _TOKENIZER_ARTIFACTS  # noqa: E402
 
 
 class PieceTokenizerForTRL(PreTrainedTokenizer):

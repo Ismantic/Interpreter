@@ -12,8 +12,8 @@ import torch
 from transformers import AutoModelForCausalLM
 from peft import PeftModel
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from train import _copy_tokenizer_artifacts  # noqa: E402
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "lib"))
+from tok_artifacts import _copy_tokenizer_artifacts  # noqa: E402
 
 
 def main():

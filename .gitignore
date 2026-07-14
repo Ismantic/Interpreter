@@ -84,11 +84,8 @@ Qwen/sherry_qat/logs_*.txt
 
 # ReTok: training/eval outputs, logs, papers, copied training data — code only is tracked
 ReTok/data/
-ReTok/output_*/
-ReTok/eval_*.log
-ReTok/*_run.log
-ReTok/chain_*.log
-ReTok/kiwi_chain.log
+ReTok/logs/
+ReTok/checkpoints/
+ReTok/models/
 ReTok/papers/
 ReTok/__pycache__/
-ReTok/smoke_logs/
