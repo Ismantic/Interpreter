@@ -30,7 +30,8 @@ Qwen/
 │                 hymt7b_translate_*.py
 ├── data/         *.jsonl / *.json training + preference + GRPO data   (git-ignored)
 ├── checkpoints/  output_*/ model checkpoints                          (git-ignored)
-├── datasets/     Qwen3-*-Base, ALMA-*, X-ALMA-*, flores200_dataset, … (git-ignored)
+├── models/       Qwen3-* base/instruct + HY-MT1.5-7B teacher/reference   (git-ignored)
+├── datasets/     ALMA-*, X-ALMA-*, flores200_dataset, metricx_repo       (git-ignored)
 ├── logs/         *.txt run/eval logs                                  (git-ignored)
 ├── sherry_qat/   downstream low-bit quantization sub-experiment (separate; see its NOTES.md)
 └── CLAUDE.md  program.md  results.tsv  DATA_MANIFEST.md  run_experiments.sh
@@ -57,7 +58,7 @@ Quick model demo: `$PY -u eval/translate.py --model_path ./checkpoints/output_1.
 PY=/home/tfbao/new/HY-MT/.venv/bin/python
 
 # SFT: full fine-tune Qwen3-1.7B-Base on ChatML translation pairs (1 epoch — see below)
-$PY -u train/train.py --model_path ./datasets/Qwen3-1.7B-Base --train_data ./data/alma_combined_sft_clean.jsonl \
+$PY -u train/train.py --model_path ./models/Qwen3-1.7B-Base --train_data ./data/alma_combined_sft_clean.jsonl \
   --output_dir ./checkpoints/output_1.7b_base_v2 --num_epochs 1 --lr 2e-5 --lr_scheduler inverse_sqrt \
   --batch_size 2 --gradient_accumulation_steps 8 --gradient_checkpointing
 

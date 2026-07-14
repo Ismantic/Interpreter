@@ -54,7 +54,7 @@ cpo_7b_full() {
 # === SFT + COIG-CQIA — Task #6 ===
 sft_cqia() {
   $PY -u train/train.py \
-    --model_path ./datasets/Qwen3-1.7B-Base \
+    --model_path ./models/Qwen3-1.7B-Base \
     --train_data ./data/sft_with_cqia.jsonl \
     --output_dir ./checkpoints/output_1.7b_cqia \
     --max_seq_length 512 \
@@ -74,7 +74,7 @@ sft_cqia() {
 # === SFT + OpenAssistant — Task #7 ===
 sft_oasst() {
   $PY -u train/train.py \
-    --model_path ./datasets/Qwen3-1.7B-Base \
+    --model_path ./models/Qwen3-1.7B-Base \
     --train_data ./data/sft_with_oasst.jsonl \
     --output_dir ./checkpoints/output_1.7b_oasst \
     --max_seq_length 512 \

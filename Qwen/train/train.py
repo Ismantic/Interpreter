@@ -252,7 +252,7 @@ def train(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Translation SFT for Qwen3")
-    parser.add_argument("--model_path", type=str, default="./datasets/Qwen3-0.6B")
+    parser.add_argument("--model_path", type=str, default="./models/Qwen3-0.6B")
     parser.add_argument("--train_data", type=str, required=True)
     parser.add_argument("--output_dir", type=str, default="./checkpoints/output_v1")
     parser.add_argument("--max_seq_length", type=int, default=512)

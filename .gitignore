@@ -63,6 +63,7 @@ Qwen/data/
 Qwen/logs/
 Qwen/checkpoints/
 Qwen/datasets/
+Qwen/models/
 
 # Large model outputs (global)
 private/
