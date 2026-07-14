@@ -34,7 +34,7 @@ ReTok/
 ├── logs/        *.log run/eval logs                                         (git-ignored)
 ├── papers/                                                                  (git-ignored)
 ├── run_sft.sh  run_cpo.sh  run_grpo.sh  run_grpo_r2.sh  run_grpo_kiwi.sh  run_kiwi_chain.sh  run_all_tie.sh
-└── CLAUDE.md  RUN_BEST_MODEL.md  results.tsv
+└── CLAUDE.md  RUN_BEST_MODEL.md  DATA_MANIFEST.md  results.tsv
 ```
 
 ReTok is self-contained: `tokenizer_wrapper.py` is its own copy (no longer imported
