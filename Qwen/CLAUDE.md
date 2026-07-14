@@ -34,7 +34,7 @@ Qwen/
 ├── datasets/     ALMA-*, X-ALMA-*, flores200_dataset, metricx_repo       (git-ignored)
 ├── logs/         *.txt run/eval logs                                  (git-ignored)
 ├── sherry_qat/   downstream low-bit quantization sub-experiment (separate; see its NOTES.md)
-└── CLAUDE.md  program.md  results.tsv  DATA_MANIFEST.md  run_experiments.sh
+└── CLAUDE.md  RUN_PIPELINE.md  program.md  results.tsv  DATA_MANIFEST.md  run_experiments.sh
 ```
 
 Quick model demo: `$PY -u eval/translate.py --model_path ./checkpoints/output_1.7b_grpo_full`
